@@ -1,20 +1,185 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 💻 제품 사양 비교 도구 (Product Comparison Tool)
 
-# Run and deploy your AI Studio app
+이 프로젝트는 다양한 제품의 기술 사양을 나란히 놓고 쉽게 비교할 수 있도록 설계된 대화형 웹 애플리케이션입니다. 사용자는 깔끔한 표 형식의 레이아웃에서 제품과 사양을 동적으로 추가, 편집, 삭제 및 관리할 수 있습니다.
 
-This contains everything you need to run your app locally.
+## ✨ 주요 기능
 
-View your app in AI Studio: https://ai.studio/apps/drive/1wNo5lFGP02BfqKtcNxTF36BptpkKwEdd
+- **동적 제품 관리**: 제품을 실시간으로 추가, 편집, 삭제할 수 있습니다.
+- **맞춤형 사양 관리**: 비교하고자 하는 사양(예: 가격, 해상도)을 자유롭게 추가하거나 제거할 수 있습니다.
+- **정렬 및 필터링**: 브랜드, 모델명, 특정 사양 값을 기준으로 제품 목록을 정렬하고 필터링하여 원하는 정보만 볼 수 있습니다.
+- **선택적 비교**: 비교하고 싶은 제품만 선택하여 별도의 비교 창에서 집중적으로 확인할 수 있습니다.
+- **데이터 가져오기/내보내기**: CSV 또는 JSON 형식의 파일을 통해 대량의 제품 데이터를 한 번에 가져오거나, 현재 데이터를 템플릿 파일로 내보낼 수 있습니다.
+- **반응형 디자인**: 데스크톱, 태블릿, 모바일 등 다양한 화면 크기에서 최적의 사용 경험을 제공합니다.
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🛠️ 기술 스택 (Tech Stack)
 
+이 프로젝트는 현대적인 웹 개발 도구를 사용하여 구축되었습니다.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **[React](https://react.dev/)**: 사용자 인터페이스(UI)를 구축하기 위한 선언적이고 효율적인 JavaScript 라이브러리입니다. 컴포넌트 기반 아키텍처를 통해 재사용 가능하고 관리하기 쉬운 코드를 작성할 수 있습니다.
+- **[TypeScript](https://www.typescriptlang.org/)**: JavaScript에 정적 타입을 추가한 슈퍼셋 언어입니다. 코드의 안정성을 높이고, 개발 과정에서 발생할 수 있는 잠재적 오류를 미리 방지하며, 코드 자동 완성과 같은 개발자 경험을 향상시킵니다.
+- **[Tailwind CSS](https://tailwindcss.com/)**: 유틸리티 우선(utility-first) CSS 프레임워크입니다. HTML 내에서 직접 스타일을 조합하여 빠르고 일관된 디자인을 구축할 수 있게 해줍니다.
+- **의존성 없는(Dependency-Free) 모듈 로딩**: `index.html` 내의 `importmap`을 사용하여 별도의 번들링 도구(Webpack, Vite 등) 설정 없이 브라우저에서 직접 React 모듈을 로드합니다. 이는 가볍고 빠른 개발 환경을 제공합니다.
+
+---
+
+## 🚀 로컬 환경에서 실행하기
+
+다른 PC에서 이 프로젝트를 다운로드하여 실행하려면 아래 단계를 따르세요.
+
+### 사전 준비 사항
+
+- [Node.js](https://nodejs.org/)가 설치되어 있어야 합니다. (npm이 함께 설치됩니다)
+- 코드를 실행할 로컬 웹 서버가 필요합니다. 여기서는 `serve` 패키지를 사용하는 방법을 안내합니다.
+
+### 단계별 실행 방법
+
+1.  **프로젝트 파일 다운로드**:
+    이 프로젝트의 모든 파일을 컴퓨터의 특정 폴더(예: `product-comparison-app`)에 다운로드합니다.
+
+2.  **터미널 열기**:
+    다운로드한 프로젝트 폴더에서 터미널(명령 프롬프트, PowerShell, Git Bash 등)을 엽니다.
+
+3.  **로컬 웹 서버 설치 (최초 1회)**:
+    아직 `serve` 패키지를 설치하지 않았다면, 아래 명령어를 실행하여 전역으로 설치합니다.
+    ```bash
+    npm install -g serve
+    ```
+
+4.  **프로젝트 실행**:
+    터미널에서 아래 명령어를 실행하여 로컬 웹 서버를 시작합니다.
+    ```bash
+    serve -s .
+    ```
+    - `serve`: 웹 서버를 실행하는 명령어입니다.
+    - `-s`: Single-Page Application(SPA) 모드로 실행하는 옵션입니다. 어떤 경로로 접속하든 `index.html`을 먼저 보여줍니다.
+    - `.`: 현재 폴더를 서버의 루트 디렉토리로 사용하겠다는 의미입니다.
+
+5.  **브라우저에서 확인**:
+    서버가 성공적으로 실행되면 터미널에 접속할 수 있는 주소(보통 `http://localhost:3000`)가 표시됩니다. 이 주소를 웹 브라우저에 입력하여 애플리케이션을 확인합니다.
+
+---
+
+### 🐳 Docker로 실행하기 (Tip)
+
+Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 않다면, Docker를 사용하여 격리된 환경에서 프로젝트를 실행할 수 있습니다.
+
+#### 사전 준비 사항
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)이 설치되어 있어야 합니다.
+
+#### 단계별 실행 방법
+
+1.  **프로젝트 루트에 `Dockerfile`과 `.dockerignore` 파일이 있는지 확인**:
+    이 프로젝트에는 이미 Docker 설정 파일들이 포함되어 있습니다. 별도로 생성할 필요가 없습니다.
+
+2.  **Docker 이미지 빌드**:
+    터미널에서 아래 명령어를 실행하여 Docker 이미지를 빌드합니다. `product-comparison-app`은 원하는 이미지 이름으로 변경할 수 있습니다.
+    ```bash
+    docker build -t product-comparison-app .
+    ```
+
+3.  **Docker 컨테이너 실행**:
+    빌드된 이미지를 사용하여 컨테이너를 실행합니다.
+    ```bash
+    docker run -p 3000:3000 --rm --name product-comparison-runner product-comparison-app
+    ```
+    - `-p 3000:3000`: 로컬 컴퓨터의 3000번 포트를 컨테이너의 3000번 포트로 연결합니다.
+    - `--rm`: 컨테이너가 중지될 때 자동으로 삭제되도록 설정합니다.
+    - `--name`: 컨테이너에 `product-comparison-runner`라는 이름을 부여합니다.
+
+4.  **브라우저에서 확인**:
+    이제 웹 브라우저에서 `http://localhost:3000` 주소로 접속하면 애플리케이션을 볼 수 있습니다.
+
+#### 💡 개발 시 유의사항
+- 위 방법은 코드를 Docker 이미지 안에 복사하는 방식이므로, 로컬에서 코드를 수정한 내용이 실행 중인 컨테이너에 **자동으로 반영되지 않습니다.**
+- 개발 중에 코드 변경 사항을 실시간으로 확인하고 싶다면, 로컬 파일 시스템을 컨테이너에 **마운트(mount)**하여 실행하는 것이 좋습니다. 아래 명령어를 사용하세요.
+  ```bash
+  # 'docker run' 명령어 대신 아래 명령어로 실행
+  # $(pwd)는 현재 디렉토리 경로를 의미합니다 (Windows PowerShell에서는 ${PWD})
+  docker run -p 3000:3000 -v "$(pwd)":/app --rm --name product-comparison-runner product-comparison-app
+  ```
+- 이 방법을 사용하면 로컬에서 파일을 수정하고 저장할 때마다 별도의 빌드 과정 없이 바로 브라우저에서 변경 사항을 확인할 수 있습니다.
+
+---
+
+## 📁 프로젝트 구조
+
+프로젝트는 다음과 같은 파일과 폴더로 구성되어 있습니다.
+
+```
+.
+├── components/          # 재사용 가능한 React 컴포넌트 폴더
+│   ├── ...
+├── Dockerfile           # Docker 이미지 빌드를 위한 설정 파일
+├── .dockerignore        # Docker 빌드 시 제외할 파일 목록
+├── index.html           # 웹 애플리케이션의 진입점 (HTML 뼈대)
+├── index.tsx            # React 앱을 DOM에 마운트하는 최상위 파일
+├── metadata.json        # 프로젝트 메타데이터
+├── README.md            # 프로젝트 설명 파일 (바로 이 파일입니다)
+└── types.ts             # TypeScript 타입 정의 (Product, Spec 등)
+```
+
+---
+
+## 🧩 컴포넌트 및 코드 상세 설명
+
+### `types.ts`
+- **역할**: 애플리케이션 전체에서 사용되는 데이터 구조를 정의합니다.
+- **`Spec` 인터페이스**: '사양' 객체의 형태를 정의합니다. (예: `{ id: 'uuid', name: '가격' }`)
+- **`Product` 인터페이스**: '제품' 객체의 형태를 정의합니다. 제품 이름, 이미지 URL, 그리고 여러 사양 값을 포함합니다.
+
+### `index.tsx`
+- **역할**: React 애플리케이션의 시작점입니다.
+- `ReactDOM.createRoot()`를 사용하여 `index.html`의 `<div id="root">` 요소에 메인 컴포넌트인 `<App />`을 렌더링(화면에 표시)합니다.
+
+### `components/icons.tsx`
+- **역할**: UI에 사용되는 다양한 SVG 아이콘들을 React 컴포넌트로 만들어 모아둔 파일입니다.
+- 아이콘을 컴포넌트화하면 크기, 색상 등을 쉽게 변경할 수 있고, 코드를 더 의미론적으로 만들 수 있습니다.
+
+### `components/Modal.tsx`
+- **역할**: 애플리케이션의 모든 모달(팝업창)을 위한 기본 뼈대를 제공하는 범용 컴포넌트입니다.
+- **주요 기능**:
+    - `isOpen` prop을 통해 모달을 열고 닫습니다.
+    - `onClose` prop으로 모달 바깥 영역을 클릭했을 때 닫히는 기능을 구현합니다.
+    - `title`과 `children` prop을 받아 모달의 제목과 내용을 채웁니다. 이를 통해 다른 모달들이 일관된 디자인을 유지할 수 있습니다.
+
+### `components/SpecFormModal.tsx`
+- **역할**: '사양'을 추가하거나 편집할 때 사용되는 모달입니다.
+- **주요 기능**:
+    - `spec` prop을 받아, 기존 사양을 편집할지 새로운 사양을 추가할지 결정합니다.
+    - 입력 필드(`input`)의 상태를 관리하고, '저장' 버튼을 누르면 `onSave` 콜백 함수를 호출하여 `App.tsx`의 상태를 업데이트합니다.
+
+### `components/ProductFormModal.tsx`
+- **역할**: '제품'을 추가하거나 편집할 때 사용되는 모달입니다. Apple 스타일의 세련된 UI를 제공합니다.
+- **주요 기능**:
+    - 제품 이름, 이미지, 그리고 모든 사양 값을 입력받는 폼을 관리합니다.
+    - **이미지 업로드**: 드래그 앤 드롭 또는 파일 선택을 통해 이미지를 업로드하고, `FileReader` API를 사용하여 이미지를 미리 보여줍니다.
+    - `product` prop을 받아 기존 제품 정보를 폼에 채워 넣거나, 비어있는 폼으로 새 제품을 추가할 수 있게 합니다.
+
+### `components/DataImportModal.tsx`
+- **역할**: 대량의 제품 데이터를 가져오기 위한 모달입니다.
+- **주요 기능**:
+    - **파일 업로드**: 사용자가 `.json` 또는 `.csv` 파일을 업로드할 수 있습니다.
+    - **CSV 파싱**: `parseCsvToJson` 함수를 통해 CSV 파일의 텍스트를 애플리케이션이 사용할 수 있는 JSON 객체 배열로 변환합니다. 헤더를 분석하여 'name', 'imageUrl' 및 나머지 사양들을 올바르게 매핑합니다.
+    - **템플릿 다운로드**: 현재 데이터를 기반으로 JSON 또는 CSV 형식의 템플릿 파일을 생성하고 다운로드할 수 있게 하여, 사용자가 데이터 형식을 쉽게 맞출 수 있도록 돕습니다.
+    - `onImport` 콜백을 호출하여 `App.tsx`의 전체 데이터를 업로드된 파일의 내용으로 교체합니다.
+
+### `App.tsx`
+- **역할**: 이 애플리케이션의 **두뇌**와 같은 핵심 컴포넌트입니다. 모든 데이터(상태), 로직, 그리고 UI의 전체적인 레이아웃을 관리합니다.
+- **상태 관리 (`useState`, `useRef`, `useEffect`)**:
+    - `specs`, `products`: 앱의 핵심 데이터인 사양과 제품 목록을 저장하고 관리합니다.
+    - `is...ModalOpen`: 각 모달의 열림/닫힘 상태를 제어합니다.
+    - `editingSpec`, `editingProduct`: 어떤 항목을 편집 중인지 추적합니다.
+    - `selectedBrand`, `modelQuery`, `selectedSpecIds`: 필터링에 사용되는 값들을 관리합니다.
+    - `sortConfig`: 제품 목록의 정렬 기준(어떤 사양으로, 오름차순/내림차순)을 저장합니다.
+- **핵심 핸들러 함수 (`handle...`)**:
+    - `handleOpen...Modal`: 모달을 여는 함수들입니다. 편집 시에는 해당 항목의 데이터를 함께 전달합니다.
+    - `handleSaveSpec`, `handleSaveProduct`: `SpecFormModal`, `ProductFormModal`에서 '저장'이 호출되면 실행됩니다. `specs`나 `products` 배열에 새로운 항목을 추가하거나 기존 항목을 업데이트하여 상태를 변경합니다.
+    - `handleDeleteSpec`, `handleDeleteProduct`: 특정 항목을 배열에서 제거합니다.
+    - `handleImportData`: `DataImportModal`에서 파일이 성공적으로 처리되면 호출됩니다. 기존의 `specs`와 `products` 상태를 파일에서 읽어온 새로운 데이터로 완전히 교체합니다.
+- **메모이제이션 (`useMemo`)**:
+    - `sortedProducts`, `filteredAndSortedSpecs` 등은 `useMemo`를 사용하여 불필요한 계산을 방지합니다. 예를 들어, `sortedProducts`는 필터링 조건(`selectedBrand`, `modelQuery`)이나 정렬 조건(`sortConfig`)이 변경될 때만 정렬을 다시 수행합니다. 이는 애플리케이션의 성능을 최적화하는 중요한 기술입니다.
+- **렌더링 로직**:
+    - 상태(`state`)를 기반으로 화면을 그립니다. 필터링과 정렬이 적용된 제품 목록과 사양 목록을 표 형태로 렌더링합니다.
+    - 각 버튼과 입력 필드에 적절한 핸들러 함수를 연결하여 사용자 상호작용에 반응하도록 합니다.
