@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Product, Spec } from './types';
-import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon } from './components/icons';
+import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon } from './components/icons';
 import SpecFormModal from './components/SpecFormModal';
 import ProductFormModal from './components/ProductFormModal';
 import DataImportModal from './components/DataImportModal';
+import ChartModal from './components/ChartModal';
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -87,8 +88,26 @@ interface SortConfig {
 }
 
 const App: React.FC = () => {
-  const [specs, setSpecs] = useState<Spec[]>(initialSpecs);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [specs, setSpecs] = useState<Spec[]>(() => {
+    try {
+      const savedSpecs = localStorage.getItem('comparison-tool-specs');
+      return savedSpecs ? JSON.parse(savedSpecs) : initialSpecs;
+    } catch (error) {
+      console.error('Could not load specs from local storage', error);
+      return initialSpecs;
+    }
+  });
+
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const savedProducts = localStorage.getItem('comparison-tool-products');
+      return savedProducts ? JSON.parse(savedProducts) : initialProducts;
+    } catch (error) {
+      console.error('Could not load products from local storage', error);
+      return initialProducts;
+    }
+  });
+
   const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -105,9 +124,37 @@ const App: React.FC = () => {
   const specFilterRef = useRef<HTMLDivElement>(null);
 
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'ascending' });
-  const [specSortDirection, setSpecSortDirection] = useState<'ascending' | 'descending'>('ascending');
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  // Drag and drop state for specs
+  const [draggedSpecId, setDraggedSpecId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  // Drag and drop state for products
+  const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
+  const [dropTargetProductId, setDropTargetProductId] = useState<string | null>(null);
+
+  // Charting state
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [chartingSpec, setChartingSpec] = useState<Spec | null>(null);
+
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('comparison-tool-specs', JSON.stringify(specs));
+    } catch (error) {
+      console.error('Could not save specs to local storage', error);
+    }
+  }, [specs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('comparison-tool-products', JSON.stringify(products));
+    } catch (error) {
+      console.error('Could not save products to local storage', error);
+    }
+  }, [products]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -138,8 +185,10 @@ const App: React.FC = () => {
     setIsSpecModalOpen(false);
     setIsProductModalOpen(false);
     setIsImportModalOpen(false);
+    setIsChartModalOpen(false);
     setEditingSpec(null);
     setEditingProduct(null);
+    setChartingSpec(null);
   }, []);
 
   const handleSaveSpec = useCallback((specData: { id?: string; name: string }) => {
@@ -187,17 +236,43 @@ const App: React.FC = () => {
     }
   }, []);
 
-    const handleToggleProductSelection = useCallback((productId: string) => {
-        setSelectedProductIds(prevSelectedIds => {
-            const newSelectedIds = new Set(prevSelectedIds);
-            if (newSelectedIds.has(productId)) {
-                newSelectedIds.delete(productId);
-            } else {
-                newSelectedIds.add(productId);
-            }
-            return newSelectedIds;
-        });
-    }, []);
+  const handleOpenChartModal = useCallback((spec: Spec) => {
+    setChartingSpec(spec);
+    setIsChartModalOpen(true);
+  }, []);
+
+  const parseSpecValueForCharting = (value: string | undefined): number | null => {
+    if (typeof value !== 'string') return null;
+    const cleanedValue = value.replace(/[$,]/g, '').trim();
+    const numericPart = cleanedValue.match(/^-?\d*\.?\d+/);
+    if (numericPart) {
+        return parseFloat(numericPart[0]);
+    }
+    return null;
+  };
+
+  const isSpecChartable = useCallback((specId: string, productList: Product[]): boolean => {
+    let numericCount = 0;
+    for (const product of productList) {
+        if (parseSpecValueForCharting(product.specs[specId]) !== null) {
+            numericCount++;
+        }
+        if (numericCount >= 2) return true;
+    }
+    return false;
+  }, []);
+
+  const handleToggleProductSelection = useCallback((productId: string) => {
+      setSelectedProductIds(prevSelectedIds => {
+          const newSelectedIds = new Set(prevSelectedIds);
+          if (newSelectedIds.has(productId)) {
+              newSelectedIds.delete(productId);
+          } else {
+              newSelectedIds.add(productId);
+          }
+          return newSelectedIds;
+      });
+  }, []);
   
   const handleSpecSelection = useCallback((specId: string) => {
     setSelectedSpecIds(prev => {
@@ -209,56 +284,56 @@ const App: React.FC = () => {
     });
   }, []);
 
-    const handleImportData = useCallback((importedProducts: any[]) => {
-        try {
-            if (!Array.isArray(importedProducts) || !importedProducts.every(p => p.name && typeof p.specs === 'object')) {
-                throw new Error('Invalid data structure in JSON file.');
-            }
+  const handleImportData = useCallback((importedProducts: any[]) => {
+      try {
+          if (!Array.isArray(importedProducts) || !importedProducts.every(p => p.name && typeof p.specs === 'object')) {
+              throw new Error('Invalid data structure in JSON file.');
+          }
 
-            const specNameSet = new Set<string>();
-            importedProducts.forEach(product => {
-                Object.keys(product.specs).forEach(specName => {
-                    specNameSet.add(specName);
-                });
-            });
+          const specNameSet = new Set<string>();
+          importedProducts.forEach(product => {
+              Object.keys(product.specs).forEach(specName => {
+                  specNameSet.add(specName);
+              });
+          });
 
-            const newSpecs = Array.from(specNameSet).map(name => ({
-                id: uuidv4(),
-                name,
-            }));
+          const newSpecs = Array.from(specNameSet).map(name => ({
+              id: uuidv4(),
+              name,
+          }));
 
-            const specNameToIdMap = new Map(newSpecs.map(s => [s.name, s.id]));
+          const specNameToIdMap = new Map(newSpecs.map(s => [s.name, s.id]));
 
-            const newProducts = importedProducts.map(product => {
-                const newProductSpecs: { [key: string]: string } = {};
-                for (const specName in product.specs) {
-                    const specId = specNameToIdMap.get(specName);
-                    if (specId) {
-                        newProductSpecs[specId] = product.specs[specName];
-                    }
-                }
-                return {
-                    id: uuidv4(),
-                    name: product.name,
-                    imageUrl: product.imageUrl || `https://picsum.photos/seed/imported${Math.random()}/400/300`,
-                    specs: newProductSpecs,
-                };
-            });
+          const newProducts = importedProducts.map(product => {
+              const newProductSpecs: { [key: string]: string } = {};
+              for (const specName in product.specs) {
+                  const specId = specNameToIdMap.get(specName);
+                  if (specId) {
+                      newProductSpecs[specId] = product.specs[specName];
+                  }
+              }
+              return {
+                  id: uuidv4(),
+                  name: product.name,
+                  imageUrl: product.imageUrl || `https://picsum.photos/seed/imported${Math.random()}/400/300`,
+                  specs: newProductSpecs,
+              };
+          });
 
-            setSpecs(newSpecs);
-            setProducts(newProducts);
-            setSelectedProductIds(new Set());
-            setSelectedSpecIds([]);
-            setModelQuery('');
-            setSelectedBrand('All Brands');
-            handleCloseModals();
-            alert('Data imported successfully!');
+          setSpecs(newSpecs);
+          setProducts(newProducts);
+          setSelectedProductIds(new Set());
+          setSelectedSpecIds([]);
+          setModelQuery('');
+          setSelectedBrand('All Brands');
+          handleCloseModals();
+          alert('Data imported successfully!');
 
-        } catch (error) {
-            console.error("Import failed:", error);
-            alert(`Failed to import data. Please check the file format. Error: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }, [handleCloseModals]);
+      } catch (error) {
+          console.error("Import failed:", error);
+          alert(`Failed to import data. Please check the file format. Error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+  }, [handleCloseModals]);
 
   const requestSort = useCallback((key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -267,33 +342,18 @@ const App: React.FC = () => {
     }
     setSortConfig({ key, direction });
   }, [sortConfig]);
+  
+  const alphabeticallySortedSpecs = useMemo(() => {
+    return [...specs].sort((a, b) => a.name.localeCompare(b.name));
+  }, [specs]);
 
-  const requestSpecSort = useCallback(() => {
-    setSpecSortDirection(prev => prev === 'ascending' ? 'descending' : 'ascending');
-  }, []);
-
-  const sortedSpecs = useMemo(() => {
-    let tempSpecs = [...specs];
-    
-    tempSpecs.sort((a, b) => {
-        const dir = specSortDirection === 'ascending' ? 1 : -1;
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
-        if (nameA < nameB) return -1 * dir;
-        if (nameA > nameB) return 1 * dir;
-        return 0;
-    });
-
-    return tempSpecs;
-  }, [specs, specSortDirection]);
-
-  const filteredAndSortedSpecs = useMemo(() => {
+  const displayedSpecs = useMemo(() => {
     if (selectedSpecIds.length > 0) {
         const selectedSet = new Set(selectedSpecIds);
-        return sortedSpecs.filter(spec => selectedSet.has(spec.id));
+        return specs.filter(spec => selectedSet.has(spec.id));
     }
-    return sortedSpecs;
-  }, [sortedSpecs, selectedSpecIds]);
+    return specs;
+  }, [specs, selectedSpecIds]);
 
   const uniqueBrands = useMemo(() => {
     const brands = new Set(products.map(p => p.name.split(' ')[0]));
@@ -349,8 +409,96 @@ const App: React.FC = () => {
   }, [filteredProducts, sortConfig]);
 
   const selectedProducts = useMemo(() => {
-    return products.filter(p => selectedProductIds.has(p.id));
+    // Maintain the order from the main products array for consistency
+    const selectedIds = selectedProductIds;
+    return products.filter(p => selectedIds.has(p.id));
   }, [products, selectedProductIds]);
+
+  // Spec Drag & Drop Handlers
+  const handleSpecDragStart = (e: React.DragEvent<HTMLDivElement>, spec: Spec) => {
+    setDraggedSpecId(spec.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleSpecDragOver = (e: React.DragEvent<HTMLDivElement>, spec: Spec) => {
+    e.preventDefault();
+    if (spec.id !== draggedSpecId) {
+        setDropTargetId(spec.id);
+    }
+  };
+
+  const handleSpecDragLeave = () => {
+    setDropTargetId(null);
+  };
+    
+  const handleSpecDrop = (e: React.DragEvent<HTMLDivElement>, dropSpec: Spec) => {
+    e.preventDefault();
+    if (!draggedSpecId) return;
+
+    const draggedIndex = specs.findIndex(s => s.id === draggedSpecId);
+    const dropIndex = specs.findIndex(s => s.id === dropSpec.id);
+
+    if (draggedIndex === -1 || dropIndex === -1 || draggedIndex === dropIndex) return;
+
+    const newSpecs = [...specs];
+    const [removed] = newSpecs.splice(draggedIndex, 1);
+    newSpecs.splice(dropIndex, 0, removed);
+
+    setSpecs(newSpecs);
+    setDraggedSpecId(null);
+    setDropTargetId(null);
+  };
+
+  const handleSpecDragEnd = () => {
+    setDraggedSpecId(null);
+    setDropTargetId(null);
+  };
+    
+  // Product Drag & Drop Handlers
+  const handleProductDragStart = (e: React.DragEvent<HTMLDivElement>, product: Product) => {
+    setDraggedProductId(product.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleProductDragOver = (e: React.DragEvent<HTMLDivElement>, product: Product) => {
+    e.preventDefault();
+    if (product.id !== draggedProductId) {
+      setDropTargetProductId(product.id);
+    }
+  };
+
+  const handleProductDragLeave = () => {
+    setDropTargetProductId(null);
+  };
+
+  const handleProductDrop = (e: React.DragEvent<HTMLDivElement>, dropProduct: Product) => {
+    e.preventDefault();
+    if (!draggedProductId) return;
+
+    // Use the main products array for reordering
+    const originalProducts = [...products];
+    const draggedIndex = originalProducts.findIndex(p => p.id === draggedProductId);
+    const dropIndex = originalProducts.findIndex(p => p.id === dropProduct.id);
+
+    if (draggedIndex === -1 || dropIndex === -1 || draggedIndex === dropIndex) {
+      setDraggedProductId(null);
+      setDropTargetProductId(null);
+      return;
+    }
+
+    const [removed] = originalProducts.splice(draggedIndex, 1);
+    originalProducts.splice(dropIndex, 0, removed);
+
+    setProducts(originalProducts);
+    setDraggedProductId(null);
+    setDropTargetProductId(null);
+  };
+
+  const handleProductDragEnd = () => {
+    setDraggedProductId(null);
+    setDropTargetProductId(null);
+  };
+
 
   const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode; className?: string; }> = ({ sortKey, children, className }) => (
     <button onClick={() => requestSort(sortKey)} className={`flex items-center gap-1 group ${className}`}>
@@ -424,7 +572,7 @@ const App: React.FC = () => {
                     <div className="absolute z-20 mt-2 w-full sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
                         <div className="p-2">
                             <div className="max-h-60 overflow-y-auto p-2">
-                                {sortedSpecs.map(spec => (
+                                {alphabeticallySortedSpecs.map(spec => (
                                     <label key={spec.id} className="flex items-center space-x-3 py-2 px-2 rounded-md hover:bg-slate-50 cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -474,23 +622,42 @@ const App: React.FC = () => {
           {/* Specs Column */}
           <div className="sticky left-0 bg-white z-10 flex-shrink-0 w-56 border-r border-slate-200">
             <div className="h-56 flex flex-col justify-between p-4 bg-slate-50/75">
-                <button onClick={requestSpecSort} className="flex items-center gap-2 group">
-                    <span className="font-bold text-slate-800 text-lg">Specification</span>
-                    {specSortDirection === 'ascending' ? <ChevronUpIcon className="h-4 w-4 text-indigo-600" /> : <ChevronDownIcon className="h-4 w-4 text-indigo-600" />}
-                </button>
+                <div>
+                  <span className="font-bold text-slate-800 text-lg">Specification</span>
+                  <p className="text-xs text-slate-500 mt-1">Drag and drop to reorder.</p>
+                </div>
                 <button onClick={() => handleOpenSpecModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors w-full justify-center">
                     <PlusIcon className="h-5 w-5" />
                     Add Spec
                 </button>
             </div>
-            {filteredAndSortedSpecs.map(spec => (
-              <div key={spec.id} className="h-24 px-4 flex items-center justify-between group border-b border-slate-200">
-                 <SortableHeader sortKey={spec.id} className="w-full text-left">
-                     <span className="font-semibold text-slate-700 text-sm">{spec.name}</span>
-                 </SortableHeader>
+            {displayedSpecs.map(spec => (
+              <div 
+                key={spec.id}
+                draggable
+                onDragStart={(e) => handleSpecDragStart(e, spec)}
+                onDragOver={(e) => handleSpecDragOver(e, spec)}
+                onDragLeave={handleSpecDragLeave}
+                onDrop={(e) => handleSpecDrop(e, spec)}
+                onDragEnd={handleSpecDragEnd}
+                className={`h-24 px-4 flex items-center justify-between group border-slate-200 transition-all duration-150
+                    ${draggedSpecId === spec.id ? 'opacity-40 bg-slate-100' : 'bg-white'}
+                    ${dropTargetId === spec.id ? 'border-t-2 border-t-indigo-500' : 'border-b'}
+                `}>
+                 <div className="flex items-center gap-2 flex-grow min-w-0">
+                    <Bars2Icon className="h-5 w-5 text-slate-400 cursor-grab flex-shrink-0" aria-hidden="true" />
+                    <SortableHeader sortKey={spec.id} className="w-full text-left">
+                        <span className="font-semibold text-slate-700 text-sm truncate" title={spec.name}>{spec.name}</span>
+                    </SortableHeader>
+                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600"><PencilIcon className="h-4 w-4" /></button>
-                  <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600"><TrashIcon className="h-4 w-4" /></button>
+                  {isSpecChartable(spec.id, products) && (
+                     <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data">
+                       <ChartBarIcon className="h-4 w-4" />
+                     </button>
+                  )}
+                  <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
+                  <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}
@@ -503,27 +670,37 @@ const App: React.FC = () => {
               return (
               <div 
                   key={product.id} 
-                  className={`flex-shrink-0 w-72 border-r border-slate-200 transition-all duration-200 cursor-pointer ring-2 ring-inset ${isSelected ? 'bg-indigo-50 ring-indigo-500' : 'bg-white ring-transparent'}`}
+                  draggable
+                  onDragStart={(e) => handleProductDragStart(e, product)}
+                  onDragOver={(e) => handleProductDragOver(e, product)}
+                  onDragLeave={handleProductDragLeave}
+                  onDrop={(e) => handleProductDrop(e, product)}
+                  onDragEnd={handleProductDragEnd}
+                  className={`flex-shrink-0 w-72 transition-all duration-200 cursor-pointer ring-2 ring-inset group
+                    ${isSelected ? 'bg-indigo-50 ring-indigo-500' : 'bg-white ring-transparent'}
+                    ${draggedProductId === product.id ? 'opacity-40' : ''}
+                    ${dropTargetProductId === product.id ? 'border-l-4 border-indigo-500' : 'border-r border-slate-200'}
+                  `}
                   onClick={() => handleToggleProductSelection(product.id)}
                   role="button"
                   aria-pressed={isSelected}
                   aria-label={`Select ${product.name}`}
                   tabIndex={0}
               >
-                <div className="h-56 p-4 border-b border-slate-200 group relative">
+                <div className="h-56 p-4 border-b border-slate-200 group/header relative cursor-grab">
                     {isSelected && (
                       <div className="absolute top-3 right-3 h-6 w-6 bg-indigo-600 rounded-full flex items-center justify-center text-white z-20 shadow">
                         <CheckIcon className="h-4 w-4" />
                       </div>
                     )}
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md mb-3 bg-slate-100" />
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md mb-3 bg-slate-100 pointer-events-none" />
                     <h3 className="font-bold text-slate-800 text-center text-lg">{product.name}</h3>
-                    <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={e => e.stopPropagation()}>
+                    <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover/header:opacity-100 transition-opacity z-10" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleOpenProductModal(product)} className="bg-white/70 backdrop-blur-sm p-1.5 rounded-full text-slate-600 hover:text-indigo-600 hover:bg-white shadow"><PencilIcon className="h-5 w-5" /></button>
                         <button onClick={() => handleDeleteProduct(product.id)} className="bg-white/70 backdrop-blur-sm p-1.5 rounded-full text-slate-600 hover:text-red-600 hover:bg-white shadow"><TrashIcon className="h-5 w-5" /></button>
                     </div>
                 </div>
-                {filteredAndSortedSpecs.map(spec => (
+                {displayedSpecs.map(spec => (
                   <div key={spec.id} className="h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm">
                     {product.specs[spec.id] || <span className="text-slate-400">-</span>}
                   </div>
@@ -571,6 +748,15 @@ const App: React.FC = () => {
         />
       )}
 
+      {isChartModalOpen && (
+        <ChartModal
+          isOpen={isChartModalOpen}
+          onClose={handleCloseModals}
+          spec={chartingSpec}
+          products={isComparisonModalOpen ? selectedProducts : products}
+        />
+      )}
+
       {isComparisonModalOpen && (
          <div 
             className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
@@ -596,9 +782,18 @@ const App: React.FC = () => {
                              <div className="h-56 flex items-center p-4 bg-slate-50">
                                 <span className="font-bold text-slate-800 text-lg">Specification</span>
                             </div>
-                            {filteredAndSortedSpecs.map(spec => (
-                                <div key={spec.id} className="h-24 px-4 flex items-center justify-between border-b border-slate-200">
+                            {displayedSpecs.map(spec => (
+                                <div key={spec.id} className="h-24 px-4 flex items-center justify-between border-b border-slate-200 group">
                                     <span className="font-semibold text-slate-700 text-sm">{spec.name}</span>
+                                    {isSpecChartable(spec.id, selectedProducts) && (
+                                        <button 
+                                            onClick={() => handleOpenChartModal(spec)}
+                                            className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                            title="Visualize data"
+                                        >
+                                            <ChartBarIcon className="h-4 w-4" />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -610,7 +805,7 @@ const App: React.FC = () => {
                                         <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md mb-3 bg-slate-100" />
                                         <h3 className="font-bold text-slate-800 text-center text-lg">{product.name}</h3>
                                     </div>
-                                    {filteredAndSortedSpecs.map(spec => (
+                                    {displayedSpecs.map(spec => (
                                         <div key={spec.id} className="h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm">
                                             {product.specs[spec.id] || <span className="text-slate-400">-</span>}
                                         </div>
