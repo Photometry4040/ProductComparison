@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Product, Spec } from './types';
-import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon } from './components/icons';
+import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon, SaveIcon } from './components/icons';
 import SpecFormModal from './components/SpecFormModal';
 import ProductFormModal from './components/ProductFormModal';
 import DataImportModal from './components/DataImportModal';
 import ChartModal from './components/ChartModal';
+import ConfirmationModal from './components/ConfirmationModal';
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -87,6 +88,25 @@ interface SortConfig {
   direction: 'ascending' | 'descending';
 }
 
+const getInitialSettings = () => {
+    try {
+        const savedSettings = localStorage.getItem('comparison-tool-settings');
+        if (savedSettings) {
+            return JSON.parse(savedSettings);
+        }
+    } catch (error) {
+        console.error('Could not load settings from local storage', error);
+    }
+    // Default settings if nothing is saved or an error occurs
+    return {
+        selectedBrand: 'All Brands',
+        modelQuery: '',
+        selectedSpecIds: [],
+        sortConfig: { key: 'name', direction: 'ascending' },
+    };
+};
+
+
 const App: React.FC = () => {
   const [specs, setSpecs] = useState<Spec[]>(() => {
     try {
@@ -114,18 +134,22 @@ const App: React.FC = () => {
   const [editingSpec, setEditingSpec] = useState<Spec | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
-  const [selectedBrand, setSelectedBrand] = useState('All Brands');
-  const [modelQuery, setModelQuery] = useState('');
+  const [initialSettings] = useState(getInitialSettings);
+  const [selectedBrand, setSelectedBrand] = useState(initialSettings.selectedBrand);
+  const [modelQuery, setModelQuery] = useState(initialSettings.modelQuery);
   const [isBrandFilterOpen, setIsBrandFilterOpen] = useState(false);
   const brandFilterRef = useRef<HTMLDivElement>(null);
 
-  const [selectedSpecIds, setSelectedSpecIds] = useState<string[]>([]);
+  const [selectedSpecIds, setSelectedSpecIds] = useState<string[]>(initialSettings.selectedSpecIds);
   const [isSpecFilterOpen, setIsSpecFilterOpen] = useState(false);
   const specFilterRef = useRef<HTMLDivElement>(null);
 
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'name', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(initialSettings.sortConfig);
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  // Reordering Mode State
+  const [isSpecReordering, setIsSpecReordering] = useState(false);
 
   // Drag and drop state for specs
   const [draggedSpecId, setDraggedSpecId] = useState<string | null>(null);
@@ -138,6 +162,19 @@ const App: React.FC = () => {
   // Charting state
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [chartingSpec, setChartingSpec] = useState<Spec | null>(null);
+
+  // Hover state for row highlighting
+  const [hoveredSpecId, setHoveredSpecId] = useState<string | null>(null);
+
+  // Save settings confirmation state
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  
+  // Confirmation Modal State
+  const [confirmation, setConfirmation] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, message: '', onConfirm: () => {} });
 
 
   useEffect(() => {
@@ -171,15 +208,15 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleOpenSpecModal = useCallback((spec: Spec | null = null) => {
+  const handleOpenSpecModal = (spec: Spec | null = null) => {
     setEditingSpec(spec);
     setIsSpecModalOpen(true);
-  }, []);
+  };
 
-  const handleOpenProductModal = useCallback((product: Product | null = null) => {
+  const handleOpenProductModal = (product: Product | null = null) => {
     setEditingProduct(product);
     setIsProductModalOpen(true);
-  }, []);
+  };
 
   const handleCloseModals = useCallback(() => {
     setIsSpecModalOpen(false);
@@ -191,7 +228,7 @@ const App: React.FC = () => {
     setChartingSpec(null);
   }, []);
 
-  const handleSaveSpec = useCallback((specData: { id?: string; name: string }) => {
+  const handleSaveSpec = (specData: { id?: string; name: string }) => {
     if (specData.id) {
       setSpecs(prev => prev.map(s => s.id === specData.id ? { ...s, name: specData.name } : s));
     } else {
@@ -200,21 +237,30 @@ const App: React.FC = () => {
       setProducts(prev => prev.map(p => ({ ...p, specs: { ...p.specs, [newSpec.id]: '' } })));
     }
     handleCloseModals();
-  }, [handleCloseModals]);
+  };
+  
+  const handleCloseConfirmation = () => {
+    setConfirmation({ isOpen: false, message: '', onConfirm: () => {} });
+  };
 
-  const handleDeleteSpec = useCallback((specId: string) => {
-    if (window.confirm('Are you sure you want to delete this specification? This will remove it from all products.')) {
-        setSpecs(prev => prev.filter(s => s.id !== specId));
-        setProducts(prev => prev.map(p => {
-            const newSpecs = { ...p.specs };
-            delete newSpecs[specId];
-            return { ...p, specs: newSpecs };
-        }));
-        setSelectedSpecIds(prev => prev.filter(id => id !== specId));
-    }
-  }, []);
+  const handleDeleteSpec = (specId: string) => {
+    setConfirmation({
+        isOpen: true,
+        message: 'Are you sure you want to delete this specification? This will remove it from all products.',
+        onConfirm: () => {
+            setSpecs(prev => prev.filter(s => s.id !== specId));
+            setProducts(prev => prev.map(p => {
+                const newSpecs = { ...p.specs };
+                delete newSpecs[specId];
+                return { ...p, specs: newSpecs };
+            }));
+            setSelectedSpecIds(prev => prev.filter(id => id !== specId));
+            handleCloseConfirmation();
+        }
+    });
+  };
 
-  const handleSaveProduct = useCallback((productData: Product) => {
+  const handleSaveProduct = (productData: Product) => {
     if (editingProduct) {
         setProducts(prev => prev.map(p => p.id === productData.id ? productData : p));
     } else {
@@ -222,24 +268,30 @@ const App: React.FC = () => {
         setProducts(prev => [...prev, newProduct]);
     }
     handleCloseModals();
-  }, [editingProduct, handleCloseModals]);
+  };
 
 
-  const handleDeleteProduct = useCallback((productId: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(p => p.id !== productId));
-      setSelectedProductIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
-  }, []);
+  const handleDeleteProduct = (productId: string) => {
+    setConfirmation({
+        isOpen: true,
+        message: 'Are you sure you want to delete this product? This action cannot be undone.',
+        onConfirm: () => {
+            setProducts(prev => prev.filter(p => p.id !== productId));
+            setSelectedProductIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(productId);
+                return newSet;
+            });
+            handleCloseModals();
+            handleCloseConfirmation();
+        }
+    });
+  };
 
-  const handleOpenChartModal = useCallback((spec: Spec) => {
+  const handleOpenChartModal = (spec: Spec) => {
     setChartingSpec(spec);
     setIsChartModalOpen(true);
-  }, []);
+  };
 
   const parseSpecValueForCharting = (value: string | undefined): number | null => {
     if (typeof value !== 'string') return null;
@@ -334,6 +386,26 @@ const App: React.FC = () => {
           alert(`Failed to import data. Please check the file format. Error: ${error instanceof Error ? error.message : String(error)}`);
       }
   }, [handleCloseModals]);
+
+  const handleSaveSettings = useCallback(() => {
+    try {
+        const settingsToSave = {
+            selectedBrand,
+            modelQuery,
+            selectedSpecIds,
+            sortConfig,
+        };
+        localStorage.setItem('comparison-tool-settings', JSON.stringify(settingsToSave));
+        
+        setShowSaveConfirmation(true);
+        setTimeout(() => {
+            setShowSaveConfirmation(false);
+        }, 3000);
+    } catch (error) {
+        console.error('Could not save settings to local storage', error);
+        alert('Failed to save settings.');
+    }
+  }, [selectedBrand, modelQuery, selectedSpecIds, sortConfig]);
 
   const requestSort = useCallback((key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -613,6 +685,14 @@ const App: React.FC = () => {
                     <ArrowUpTrayIcon className="h-5 w-5" />
                     Import Data
                 </button>
+                <button
+                    onClick={handleSaveSettings}
+                    className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
+                    aria-label="Save current settings"
+                >
+                    <SaveIcon className="h-5 w-5" />
+                    Save Settings
+                </button>
             </div>
         </div>
       </header>
@@ -624,41 +704,72 @@ const App: React.FC = () => {
             <div className="h-56 flex flex-col justify-between p-4 bg-slate-50/75">
                 <div>
                   <span className="font-bold text-slate-800 text-lg">Specification</span>
-                  <p className="text-xs text-slate-500 mt-1">Drag and drop to reorder.</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isSpecReordering ? 'Drag and drop to reorder.' : 'Click Reorder to change order.'}
+                  </p>
                 </div>
-                <button onClick={() => handleOpenSpecModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors w-full justify-center">
-                    <PlusIcon className="h-5 w-5" />
-                    Add Spec
-                </button>
+                <div className="flex flex-col gap-2">
+                    <button onClick={() => handleOpenSpecModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors w-full justify-center">
+                        <PlusIcon className="h-5 w-5" />
+                        Add Spec
+                    </button>
+                    {isSpecReordering ? (
+                        <button onClick={() => setIsSpecReordering(false)} className="flex items-center gap-2 text-sm bg-green-50 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-100 transition-colors w-full justify-center">
+                            <CheckIcon className="h-5 w-5" />
+                            Done
+                        </button>
+                    ) : (
+                        <button onClick={() => setIsSpecReordering(true)} className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors w-full justify-center">
+                            <Bars2Icon className="h-5 w-5" />
+                            Reorder
+                        </button>
+                    )}
+                </div>
             </div>
             {displayedSpecs.map(spec => (
               <div 
                 key={spec.id}
-                draggable
-                onDragStart={(e) => handleSpecDragStart(e, spec)}
-                onDragOver={(e) => handleSpecDragOver(e, spec)}
-                onDragLeave={handleSpecDragLeave}
-                onDrop={(e) => handleSpecDrop(e, spec)}
-                onDragEnd={handleSpecDragEnd}
-                className={`h-24 px-4 flex items-center justify-between group border-slate-200 transition-all duration-150
-                    ${draggedSpecId === spec.id ? 'opacity-40 bg-slate-100' : 'bg-white'}
+                draggable={isSpecReordering}
+                onDragStart={isSpecReordering ? (e) => handleSpecDragStart(e, spec) : undefined}
+                onDragEnd={isSpecReordering ? handleSpecDragEnd : undefined}
+                onDragOver={isSpecReordering ? (e) => handleSpecDragOver(e, spec) : undefined}
+                onDragLeave={isSpecReordering ? handleSpecDragLeave : undefined}
+                onDrop={isSpecReordering ? (e) => handleSpecDrop(e, spec) : undefined}
+                onMouseEnter={() => setHoveredSpecId(spec.id)}
+                onMouseLeave={() => setHoveredSpecId(null)}
+                className={`h-24 px-4 flex items-center justify-between group border-slate-200 transition-colors duration-150
+                    ${isSpecReordering ? 'cursor-grab active:cursor-grabbing' : ''}
+                    ${draggedSpecId === spec.id ? 'opacity-40 bg-slate-100' : ''}
+                    ${!isSpecReordering && hoveredSpecId === spec.id ? 'bg-indigo-100' : 'bg-white'}
                     ${dropTargetId === spec.id ? 'border-t-2 border-t-indigo-500' : 'border-b'}
                 `}>
                  <div className="flex items-center gap-2 flex-grow min-w-0">
-                    <Bars2Icon className="h-5 w-5 text-slate-400 cursor-grab flex-shrink-0" aria-hidden="true" />
-                    <SortableHeader sortKey={spec.id} className="w-full text-left">
+                    {isSpecReordering ? (
+                      <Bars2Icon className="h-5 w-5 text-slate-400 cursor-grab flex-shrink-0" aria-hidden="true" />
+                    ) : (
+                        // Use a placeholder to maintain alignment
+                        <div className="w-5 flex-shrink-0" />
+                    )}
+                    
+                    {isSpecReordering ? (
                         <span className="font-semibold text-slate-700 text-sm truncate" title={spec.name}>{spec.name}</span>
-                    </SortableHeader>
+                    ) : (
+                        <SortableHeader sortKey={spec.id} className="w-full text-left">
+                            <span className="font-semibold text-slate-700 text-sm truncate" title={spec.name}>{spec.name}</span>
+                        </SortableHeader>
+                    )}
                  </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {isSpecChartable(spec.id, products) && (
-                     <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data">
-                       <ChartBarIcon className="h-4 w-4" />
-                     </button>
-                  )}
-                  <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
-                  <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
-                </div>
+                 {!isSpecReordering && (
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {isSpecChartable(spec.id, products) && (
+                         <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data">
+                           <ChartBarIcon className="h-4 w-4" />
+                         </button>
+                      )}
+                      <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
+                      <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
+                    </div>
+                 )}
               </div>
             ))}
           </div>
@@ -669,17 +780,11 @@ const App: React.FC = () => {
               const isSelected = selectedProductIds.has(product.id);
               return (
               <div 
-                  key={product.id} 
-                  draggable
-                  onDragStart={(e) => handleProductDragStart(e, product)}
-                  onDragOver={(e) => handleProductDragOver(e, product)}
-                  onDragLeave={handleProductDragLeave}
-                  onDrop={(e) => handleProductDrop(e, product)}
-                  onDragEnd={handleProductDragEnd}
-                  className={`flex-shrink-0 w-72 transition-all duration-200 cursor-pointer ring-2 ring-inset group
+                  key={product.id}
+                  className={`flex-shrink-0 w-72 transition-all duration-200 ring-2 ring-inset group border-r border-slate-200
                     ${isSelected ? 'bg-indigo-50 ring-indigo-500' : 'bg-white ring-transparent'}
                     ${draggedProductId === product.id ? 'opacity-40' : ''}
-                    ${dropTargetProductId === product.id ? 'border-l-4 border-indigo-500' : 'border-r border-slate-200'}
+                    ${dropTargetProductId === product.id ? 'border-l-4 border-indigo-500' : ''}
                   `}
                   onClick={() => handleToggleProductSelection(product.id)}
                   role="button"
@@ -687,21 +792,53 @@ const App: React.FC = () => {
                   aria-label={`Select ${product.name}`}
                   tabIndex={0}
               >
-                <div className="h-56 p-4 border-b border-slate-200 group/header relative cursor-grab">
-                    {isSelected && (
-                      <div className="absolute top-3 right-3 h-6 w-6 bg-indigo-600 rounded-full flex items-center justify-center text-white z-20 shadow">
-                        <CheckIcon className="h-4 w-4" />
-                      </div>
-                    )}
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md mb-3 bg-slate-100 pointer-events-none" />
-                    <h3 className="font-bold text-slate-800 text-center text-lg">{product.name}</h3>
-                    <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover/header:opacity-100 transition-opacity z-10" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => handleOpenProductModal(product)} className="bg-white/70 backdrop-blur-sm p-1.5 rounded-full text-slate-600 hover:text-indigo-600 hover:bg-white shadow"><PencilIcon className="h-5 w-5" /></button>
-                        <button onClick={() => handleDeleteProduct(product.id)} className="bg-white/70 backdrop-blur-sm p-1.5 rounded-full text-slate-600 hover:text-red-600 hover:bg-white shadow"><TrashIcon className="h-5 w-5" /></button>
+                <div 
+                    className="h-56 p-4 border-b border-slate-200 flex flex-col justify-between"
+                    onDrop={(e) => handleProductDrop(e, product)}
+                    onDragOver={(e) => handleProductDragOver(e, product)}
+                    onDragLeave={handleProductDragLeave}
+                >
+                    <div className="relative">
+                        {isSelected && (
+                          <div className="absolute top-0 right-0 h-6 w-6 bg-indigo-600 rounded-full flex items-center justify-center text-white z-20 shadow -mt-1 -mr-1">
+                            <CheckIcon className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div
+                          draggable
+                          onDragStart={(e) => handleProductDragStart(e, product)}
+                          onDragEnd={handleProductDragEnd}
+                          className="cursor-grab"
+                        >
+                            <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md bg-slate-100 pointer-events-none" />
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 className="font-bold text-slate-800 text-center text-lg truncate" title={product.name}>{product.name}</h3>
+                        <div className="flex items-center justify-center gap-4 mt-2">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenProductModal(product);
+                                }} 
+                                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors p-1"
+                                title="Edit Product"
+                            >
+                                <PencilIcon className="h-4 w-4" />
+                                Edit
+                            </button>
+                        </div>
                     </div>
                 </div>
+
                 {displayedSpecs.map(spec => (
-                  <div key={spec.id} className="h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm">
+                  <div 
+                    key={spec.id} 
+                    onMouseEnter={() => setHoveredSpecId(spec.id)}
+                    onMouseLeave={() => setHoveredSpecId(null)}
+                    className={`h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : 'bg-transparent'}`}
+                  >
                     {product.specs[spec.id] || <span className="text-slate-400">-</span>}
                   </div>
                 ))}
@@ -733,6 +870,7 @@ const App: React.FC = () => {
             isOpen={isProductModalOpen}
             onClose={handleCloseModals}
             onSave={handleSaveProduct}
+            onDelete={handleDeleteProduct}
             product={editingProduct}
             specs={specs}
         />
@@ -756,6 +894,14 @@ const App: React.FC = () => {
           products={isComparisonModalOpen ? selectedProducts : products}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        onClose={handleCloseConfirmation}
+        onConfirm={confirmation.onConfirm}
+        title="Confirm Deletion"
+        message={confirmation.message}
+      />
 
       {isComparisonModalOpen && (
          <div 
@@ -783,7 +929,12 @@ const App: React.FC = () => {
                                 <span className="font-bold text-slate-800 text-lg">Specification</span>
                             </div>
                             {displayedSpecs.map(spec => (
-                                <div key={spec.id} className="h-24 px-4 flex items-center justify-between border-b border-slate-200 group">
+                                <div 
+                                    key={spec.id} 
+                                    onMouseEnter={() => setHoveredSpecId(spec.id)}
+                                    onMouseLeave={() => setHoveredSpecId(null)}
+                                    className={`h-24 px-4 flex items-center justify-between border-b border-slate-200 group transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : ''}`}
+                                >
                                     <span className="font-semibold text-slate-700 text-sm">{spec.name}</span>
                                     {isSpecChartable(spec.id, selectedProducts) && (
                                         <button 
@@ -806,7 +957,12 @@ const App: React.FC = () => {
                                         <h3 className="font-bold text-slate-800 text-center text-lg">{product.name}</h3>
                                     </div>
                                     {displayedSpecs.map(spec => (
-                                        <div key={spec.id} className="h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm">
+                                        <div 
+                                            key={spec.id} 
+                                            onMouseEnter={() => setHoveredSpecId(spec.id)}
+                                            onMouseLeave={() => setHoveredSpecId(null)}
+                                            className={`h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : ''}`}
+                                        >
                                             {product.specs[spec.id] || <span className="text-slate-400">-</span>}
                                         </div>
                                     ))}
@@ -815,6 +971,17 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+      )}
+
+      {showSaveConfirmation && (
+        <div 
+            className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-5 py-3 rounded-lg shadow-2xl transition-opacity duration-500"
+        >
+            <div className="flex items-center gap-3">
+                <CheckIcon className="h-5 w-5 text-green-400" />
+                <span className="font-semibold">Settings Saved!</span>
             </div>
         </div>
       )}

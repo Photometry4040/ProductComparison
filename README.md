@@ -109,15 +109,22 @@ Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 �
 
 ```
 .
-├── components/          # 재사용 가능한 React 컴포넌트 폴더
-│   ├── ...
-├── Dockerfile           # Docker 이미지 빌드를 위한 설정 파일
-├── .dockerignore        # Docker 빌드 시 제외할 파일 목록
-├── index.html           # 웹 애플리케이션의 진입점 (HTML 뼈대)
-├── index.tsx            # React 앱을 DOM에 마운트하는 최상위 파일
-├── metadata.json        # 프로젝트 메타데이터
-├── README.md            # 프로젝트 설명 파일 (바로 이 파일입니다)
-└── types.ts             # TypeScript 타입 정의 (Product, Spec 등)
+├── components/                 # 재사용 가능한 React 컴포넌트 폴더
+│   ├── App.tsx
+│   ├── ChartModal.tsx
+│   ├── ConfirmationModal.tsx   # <<< 확인 모달 컴포넌트
+│   ├── DataImportModal.tsx
+│   ├── icons.tsx
+│   ├── Modal.tsx
+│   ├── ProductFormModal.tsx
+│   └── SpecFormModal.tsx
+├── Dockerfile                  # Docker 이미지 빌드를 위한 설정 파일
+├── .dockerignore               # Docker 빌드 시 제외할 파일 목록
+├── index.html                  # 웹 애플리케이션의 진입점 (HTML 뼈대)
+├── index.tsx                   # React 앱을 DOM에 마운트하는 최상위 파일
+├── metadata.json               # 프로젝트 메타데이터
+├── README.md                   # 프로젝트 설명 파일 (바로 이 파일입니다)
+└── types.ts                    # TypeScript 타입 정의 (Product, Spec 등)
 ```
 
 ---
@@ -144,6 +151,13 @@ Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 �
     - `onClose` prop으로 모달 바깥 영역을 클릭했을 때 닫히는 기능을 구현합니다.
     - `title`과 `children` prop을 받아 모달의 제목과 내용을 채웁니다. 이를 통해 다른 모달들이 일관된 디자인을 유지할 수 있습니다.
 
+### `components/ConfirmationModal.tsx`
+- **역할**: 삭제와 같이 되돌릴 수 없는 중요한 작업을 수행하기 전에 사용자에게 최종 확인을 받는 범용 확인 모달입니다.
+- **주요 기능**:
+    - **안정적인 확인 절차**: 브라우저에 내장된 `window.confirm` 대화상자는 특정 환경(예: iframe)에서 차단될 수 있지만, 이 커스텀 모달은 환경에 구애받지 않고 항상 일관되게 동작하여 안정성을 보장합니다.
+    - **시각적 경고**: 위험한 작업을 수행 중임을 사용자에게 명확히 알리기 위해 경고 아이콘과 눈에 띄는 버튼 색상(예: 빨간색 삭제 버튼)을 사용합니다.
+    - **재사용성**: `title`, `message`, `onConfirm` 콜백 함수를 props로 받아 어떤 종류의 확인 작업에도 재사용할 수 있습니다.
+
 ### `components/SpecFormModal.tsx`
 - **역할**: '사양'을 추가하거나 편집할 때 사용되는 모달입니다.
 - **주요 기능**:
@@ -156,6 +170,7 @@ Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 �
     - 제품 이름, 이미지, 그리고 모든 사양 값을 입력받는 폼을 관리합니다.
     - **이미지 업로드**: 드래그 앤 드롭 또는 파일 선택을 통해 이미지를 업로드하고, `FileReader` API를 사용하여 이미지를 미리 보여줍니다.
     - `product` prop을 받아 기존 제품 정보를 폼에 채워 넣거나, 비어있는 폼으로 새 제품을 추가할 수 있게 합니다.
+    - **제품 삭제 기능**: 모달 하단에 '삭제' 버튼이 포함되어 있어, 제품 수정 중에 해당 제품을 안전하게 삭제할 수 있습니다.
 
 ### `components/DataImportModal.tsx`
 - **역할**: 대량의 제품 데이터를 가져오기 위한 모달입니다.
@@ -176,10 +191,10 @@ Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 �
 - **핵심 핸들러 함수 (`handle...`)**:
     - `handleOpen...Modal`: 모달을 여는 함수들입니다. 편집 시에는 해당 항목의 데이터를 함께 전달합니다.
     - `handleSaveSpec`, `handleSaveProduct`: `SpecFormModal`, `ProductFormModal`에서 '저장'이 호출되면 실행됩니다. `specs`나 `products` 배열에 새로운 항목을 추가하거나 기존 항목을 업데이트하여 상태를 변경합니다.
-    - `handleDeleteSpec`, `handleDeleteProduct`: 특정 항목을 배열에서 제거합니다.
+    - `handleDeleteSpec`, `handleDeleteProduct`: 특정 항목을 배열에서 제거합니다. 사용자의 실수를 방지하기 위해, 즉시 삭제하는 대신 `ConfirmationModal`을 열어 최종 확인을 받습니다.
     - `handleImportData`: `DataImportModal`에서 파일이 성공적으로 처리되면 호출됩니다. 기존의 `specs`와 `products` 상태를 파일에서 읽어온 새로운 데이터로 완전히 교체합니다.
 - **메모이제이션 (`useMemo`)**:
-    - `sortedProducts`, `filteredAndSortedSpecs` 등은 `useMemo`를 사용하여 불필요한 계산을 방지합니다. 예를 들어, `sortedProducts`는 필터링 조건(`selectedBrand`, `modelQuery`)이나 정렬 조건(`sortConfig`)이 변경될 때만 정렬을 다시 수행합니다. 이는 애플리케이션의 성능을 최적화하는 중요한 기술입니다.
+    - `sortedProducts`, `displayedSpecs` 등은 `useMemo`를 사용하여 불필요한 계산을 방지합니다. 예를 들어, `sortedProducts`는 필터링 조건(`selectedBrand`, `modelQuery`)이나 정렬 조건(`sortConfig`)이 변경될 때만 정렬을 다시 수행합니다. 이는 애플리케이션의 성능을 최적화하는 중요한 기술입니다.
 - **렌더링 로직**:
     - 상태(`state`)를 기반으로 화면을 그립니다. 필터링과 정렬이 적용된 제품 목록과 사양 목록을 표 형태로 렌더링합니다.
     - 각 버튼과 입력 필드에 적절한 핸들러 함수를 연결하여 사용자 상호작용에 반응하도록 합니다.
