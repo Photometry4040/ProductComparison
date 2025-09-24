@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import { Product, Spec } from '../types';
@@ -13,10 +14,10 @@ interface ProductFormModalProps {
 }
 
 const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, onDelete, product, specs }) => {
-    const [formData, setFormData] = useState<Product>(() => {
+    const [formData, setFormData] = useState<Omit<Product, 'id'> & { id?: string }>(() => {
         const newSpecs: { [key: string]: string } = {};
         specs.forEach(s => newSpecs[s.id] = '');
-        return { id: '', name: '', imageUrl: '', specs: newSpecs };
+        return { brand: '', model: '', imageUrl: '', specs: newSpecs };
     });
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +35,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
             } else {
                 const newSpecs: { [key: string]: string } = {};
                 specs.forEach(s => newSpecs[s.id] = '');
-                setFormData({ id: '', name: '', imageUrl: '', specs: newSpecs });
+                setFormData({ id: undefined, brand: '', model: '', imageUrl: '', specs: newSpecs });
             }
         }
     }, [isOpen, product, specs]);
@@ -94,8 +95,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name.trim()) return;
-        onSave(formData);
+        if (!formData.brand.trim() || !formData.model.trim()) return;
+        onSave(formData as Product);
     };
 
     const sortedSpecs = React.useMemo(() => [...specs].sort((a,b) => a.name.localeCompare(b.name)), [specs]);
@@ -104,10 +105,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         <Modal isOpen={isOpen} onClose={onClose} title={product ? 'Edit Product' : 'Add New Product'}>
             <form onSubmit={handleSubmit} className="flex flex-col h-[70vh]">
                 <div className="flex-grow space-y-8 overflow-y-auto -mr-6 pr-6">
-                     <div>
-                        <label htmlFor="productName" className="block text-sm font-medium leading-6 text-slate-900">Product Name</label>
-                        <div className="mt-2">
-                             <input type="text" id="productName" name="name" value={formData.name} onChange={handleChange} className="block w-full rounded-md border-0 py-1.5 bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" required />
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+                        <div>
+                            <label htmlFor="productBrand" className="block text-sm font-medium leading-6 text-slate-900">Brand</label>
+                            <div className="mt-2">
+                                <input type="text" id="productBrand" name="brand" value={formData.brand} onChange={handleChange} className="block w-full rounded-md border-0 py-1.5 bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" required />
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="productModel" className="block text-sm font-medium leading-6 text-slate-900">Model</label>
+                            <div className="mt-2">
+                                <input type="text" id="productModel" name="model" value={formData.model} onChange={handleChange} className="block w-full rounded-md border-0 py-1.5 bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" required />
+                            </div>
                         </div>
                     </div>
                      <div>

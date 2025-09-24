@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Modal from './Modal';
@@ -41,7 +42,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, spec, products
     .map(product => {
         const value = parseSpecValue(product.specs[spec.id]);
         return {
-            name: product.name,
+            name: `${product.brand} ${product.model}`,
             value: value,
         };
     })

@@ -6,7 +6,8 @@ export interface Spec {
 
 export interface Product {
   id: string;
-  name: string;
+  brand: string;
+  model: string;
   imageUrl: string;
   specs: { [key: string]: string }; // key is spec.id
 }

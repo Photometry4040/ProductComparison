@@ -1,11 +1,14 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import { Product, Spec } from './types';
-import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon, SaveIcon } from './components/icons';
+import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon, SaveIcon, ArrowsRightLeftIcon } from './components/icons';
 import SpecFormModal from './components/SpecFormModal';
 import ProductFormModal from './components/ProductFormModal';
 import DataImportModal from './components/DataImportModal';
 import ChartModal from './components/ChartModal';
 import ConfirmationModal from './components/ConfirmationModal';
+// FIX: Suppress TS error for react-window import, likely due to missing `@types/react-window`.
+// @ts-ignore
+import { FixedSizeList as List } from 'react-window';
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -31,7 +34,8 @@ const initialSpecs: Spec[] = specData;
 const initialProducts: Product[] = [
   {
     id: uuidv4(),
-    name: 'BenQ TK710',
+    brand: 'BenQ',
+    model: 'TK710',
     imageUrl: 'https://picsum.photos/seed/proj1/400/300',
     specs: {
       [specData[0].id]: '$2,999',
@@ -46,9 +50,28 @@ const initialProducts: Product[] = [
       [specData[9].id]: 'DLP',
     },
   },
+    {
+    id: uuidv4(),
+    brand: 'BenQ',
+    model: 'HT4550i',
+    imageUrl: 'https://picsum.photos/seed/proj4/400/300',
+    specs: {
+      [specData[0].id]: '$2,999',
+      [specData[1].id]: '$2,999',
+      [specData[2].id]: 'Shipping',
+      [specData[3].id]: 'Apr 2023',
+      [specData[4].id]: '3 Years',
+      [specData[5].id]: '3,200 ANSI Lumens',
+      [specData[6].id]: '3840x2160',
+      [specData[7].id]: '16:9 (4K UHD)',
+      [specData[8].id]: '2,000,000:1',
+      [specData[9].id]: 'DLP',
+    },
+  },
   {
     id: uuidv4(),
-    name: 'Epson Pro Cinema LS12000',
+    brand: 'Epson',
+    model: 'Pro Cinema LS12000',
     imageUrl: 'https://picsum.photos/seed/proj2/400/300',
     specs: {
       [specData[0].id]: '$4,999',
@@ -65,7 +88,8 @@ const initialProducts: Product[] = [
   },
   {
     id: uuidv4(),
-    name: 'Sony VPL-XW5000ES',
+    brand: 'Sony',
+    model: 'VPL-XW5000ES',
     imageUrl: 'https://picsum.photos/seed/proj3/400/300',
     specs: {
       [specData[0].id]: '$5,999',
@@ -88,6 +112,8 @@ interface SortConfig {
   direction: 'ascending' | 'descending';
 }
 
+type ViewMode = 'product-as-row' | 'product-as-column';
+
 const getInitialSettings = () => {
     try {
         const savedSettings = localStorage.getItem('comparison-tool-settings');
@@ -103,8 +129,256 @@ const getInitialSettings = () => {
         modelQuery: '',
         selectedSpecIds: [],
         sortConfig: { key: 'name', direction: 'ascending' },
+        viewMode: 'product-as-row' as ViewMode,
     };
 };
+
+const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode; className?: string; onClick: (key: string) => void; sortConfig: SortConfig | null }> = ({ sortKey, children, className, onClick, sortConfig }) => (
+    <button onClick={() => onClick(sortKey)} className={`flex items-center gap-1 group w-full ${className}`}>
+        <span className="truncate">{children}</span>
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            {sortConfig?.key === sortKey ? (
+                sortConfig.direction === 'ascending' ? <ChevronUpIcon className="h-4 w-4 text-indigo-600" /> : <ChevronDownIcon className="h-4 w-4 text-indigo-600" />
+            ) : (
+               <ChevronUpIcon className="h-4 w-4 text-slate-400" />
+            )}
+        </div>
+    </button>
+);
+
+const ProductAsRowView = memo((props: any) => {
+    const { 
+        sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection, 
+        handleOpenProductModal, isProductReordering, handleProductDragStart, 
+        handleProductDragEnd, handleProductDragOver, handleProductDragLeave, handleProductDrop,
+        draggedProductId, dropTargetProductId, requestSort, sortConfig,
+        isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
+        handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
+        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+    } = props;
+
+    const ProductRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
+        const { products, displayedSpecs, selectedProductIds, handleToggleProductSelection, handleOpenProductModal, isProductReordering, handleProductDragStart, handleProductDragEnd, handleProductDrop, handleProductDragOver, handleProductDragLeave, draggedProductId, dropTargetProductId } = data;
+        const product = products[index];
+        const isSelected = selectedProductIds.has(product.id);
+        const productName = `${product.brand} ${product.model}`;
+
+        return (
+            <div 
+              style={style}
+              className={`
+                ${draggedProductId === product.id ? 'opacity-40' : ''}
+                ${dropTargetProductId === product.id ? 'border-t-2 border-indigo-500' : ''}
+              `}
+            >
+                <div
+                    className={`flex items-stretch border-b border-slate-200 h-full transition-colors duration-200 ${isSelected ? 'bg-indigo-50' : 'bg-white'}`}
+                    draggable={isProductReordering}
+                    onDragStart={isProductReordering ? (e) => handleProductDragStart(e, product) : undefined}
+                    onDragEnd={isProductReordering ? handleProductDragEnd : undefined}
+                    onDragOver={isProductReordering ? (e) => handleProductDragOver(e, product) : undefined}
+                    onDragLeave={isProductReordering ? handleProductDragLeave : undefined}
+                    onDrop={isProductReordering ? (e) => handleProductDrop(e, product) : undefined}
+                >
+                    <div className="flex-shrink-0 w-64 p-2 flex items-center gap-3 border-r border-slate-200">
+                        <div className="flex items-center gap-2">
+                            {isProductReordering ? (
+                              <Bars2Icon className="h-5 w-5 text-slate-400 cursor-grab" aria-hidden="true" />
+                            ) : (
+                              <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleProductSelection(product.id)}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                  aria-label={`Select ${productName}`}
+                              />
+                            )}
+                        </div>
+                        <img src={product.imageUrl} alt={productName} className="w-20 h-16 object-cover rounded-md bg-slate-100 flex-shrink-0" />
+                        <div className="flex-grow min-w-0">
+                            <p className="font-bold text-slate-800 truncate" title={productName}>{productName}</p>
+                            <button
+                                onClick={() => handleOpenProductModal(product)}
+                                className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                            >
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    {displayedSpecs.map(spec => (
+                        <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600">
+                           <span className="truncate"> {product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    });
+
+    return (
+        <div className="overflow-x-auto bg-white rounded-xl shadow-lg ring-1 ring-slate-900/5">
+            <div className="min-w-max">
+                <div className="flex sticky top-0 bg-slate-100/75 backdrop-blur-sm z-10 border-b-2 border-slate-300">
+                    <div className="flex-shrink-0 w-64 p-3 flex items-center border-r border-slate-200 font-bold text-slate-800">
+                       <SortableHeader sortKey="name" onClick={requestSort} sortConfig={sortConfig} className="text-sm">Product ({sortedProducts.length})</SortableHeader>
+                    </div>
+                    {displayedSpecs.map(spec => (
+                         <div 
+                            key={spec.id}
+                            draggable={isSpecReordering}
+                            onDragStart={isSpecReordering ? (e) => handleSpecDragStart(e, spec) : undefined}
+                            onDragEnd={isSpecReordering ? handleSpecDragEnd : undefined}
+                            onDragOver={isSpecReordering ? (e) => handleSpecDragOver(e, spec) : undefined}
+                            onDragLeave={isSpecReordering ? handleSpecDragLeave : undefined}
+                            onDrop={isSpecReordering ? (e) => handleSpecDrop(e, spec) : undefined}
+                            className={`flex-shrink-0 w-48 p-3 flex items-center justify-between border-r border-slate-200 group
+                               ${isSpecReordering ? 'cursor-grab active:cursor-grabbing' : ''}
+                               ${draggedSpecId === spec.id ? 'opacity-40' : ''}
+                               ${dropTargetId === spec.id ? 'border-l-2 border-l-indigo-500' : ''}
+                            `}>
+                             <div className="flex items-center gap-2 flex-grow min-w-0">
+                               {isSpecReordering && <Bars2Icon className="h-5 w-5 text-slate-400 flex-shrink-0" />}
+                               <SortableHeader sortKey={spec.id} onClick={requestSort} sortConfig={sortConfig} className="font-bold text-slate-800 text-sm">{spec.name}</SortableHeader>
+                             </div>
+                            {!isSpecReordering && (
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {isSpecChartable(spec.id, products) && (
+                                     <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data">
+                                       <ChartBarIcon className="h-4 w-4" />
+                                     </button>
+                                  )}
+                                  <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
+                                  <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
+                                </div>
+                             )}
+                        </div>
+                    ))}
+                </div>
+                <List
+                    height={600}
+                    itemCount={sortedProducts.length}
+                    itemSize={80}
+                    width="100%"
+                    itemData={{
+                        products: sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection,
+                        handleOpenProductModal, isProductReordering, handleProductDragStart, handleProductDragEnd,
+                        handleProductDrop, handleProductDragOver, handleProductDragLeave, draggedProductId,
+                        dropTargetProductId
+                    }}
+                >
+                    {ProductRow}
+                </List>
+            </div>
+        </div>
+    );
+});
+
+const ProductAsColumnView = memo((props: any) => {
+    const { 
+        sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection, 
+        handleOpenProductModal, isProductReordering, handleProductDragStart, 
+        handleProductDragEnd, handleProductDragOver, handleProductDragLeave, handleProductDrop,
+        draggedProductId, dropTargetProductId, requestSort, sortConfig,
+        isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
+        handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
+        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+    } = props;
+    
+    return (
+        <div className="overflow-x-auto bg-white rounded-xl shadow-lg ring-1 ring-slate-900/5">
+            <div className="flex min-w-max">
+                {/* Specs Header Column */}
+                <div className="flex-shrink-0 sticky left-0 bg-slate-100/75 backdrop-blur-sm z-10 border-r-2 border-slate-300">
+                    <div className="h-48 p-3 flex items-end border-b border-slate-200">
+                        <SortableHeader sortKey="name" onClick={requestSort} sortConfig={sortConfig} className="font-bold text-slate-800 text-sm">
+                            Product ({sortedProducts.length})
+                        </SortableHeader>
+                    </div>
+                    {displayedSpecs.map(spec => (
+                        <div
+                            key={spec.id}
+                            draggable={isSpecReordering}
+                            onDragStart={isSpecReordering ? (e) => handleSpecDragStart(e, spec) : undefined}
+                            onDragEnd={isSpecReordering ? handleSpecDragEnd : undefined}
+                            onDragOver={isSpecReordering ? (e) => handleSpecDragOver(e, spec) : undefined}
+                            onDragLeave={isSpecReordering ? handleSpecDragLeave : undefined}
+                            onDrop={isSpecReordering ? (e) => handleSpecDrop(e, spec) : undefined}
+                            className={`h-12 w-64 p-3 flex items-center justify-between border-b border-slate-200 group
+                                ${isSpecReordering ? 'cursor-grab active:cursor-grabbing' : ''}
+                                ${draggedSpecId === spec.id ? 'opacity-40' : ''}
+                                ${dropTargetId === spec.id ? 'border-t-2 border-t-indigo-500' : ''}
+                            `}
+                        >
+                            <div className="flex items-center gap-2 flex-grow min-w-0">
+                                {isSpecReordering && <Bars2Icon className="h-5 w-5 text-slate-400 flex-shrink-0" />}
+                                <SortableHeader sortKey={spec.id} onClick={requestSort} sortConfig={sortConfig} className="font-bold text-slate-800 text-sm">{spec.name}</SortableHeader>
+                            </div>
+                            {!isSpecReordering && (
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {isSpecChartable(spec.id, products) && (
+                                        <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data"><ChartBarIcon className="h-4 w-4" /></button>
+                                    )}
+                                    <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
+                                    <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Products Columns */}
+                {sortedProducts.map(product => {
+                    const isSelected = selectedProductIds.has(product.id);
+                    const productName = `${product.brand} ${product.model}`;
+                    return (
+                        <div
+                            key={product.id}
+                            draggable={isProductReordering}
+                            onDragStart={isProductReordering ? (e) => handleProductDragStart(e, product) : undefined}
+                            onDragEnd={isProductReordering ? handleProductDragEnd : undefined}
+                            onDragOver={isProductReordering ? (e) => handleProductDragOver(e, product) : undefined}
+                            onDragLeave={isProductReordering ? handleProductDragLeave : undefined}
+                            onDrop={isProductReordering ? (e) => handleProductDrop(e, product) : undefined}
+                            className={`flex-shrink-0 w-56 border-r border-slate-200 transition-colors duration-200 
+                                ${isSelected ? 'bg-indigo-50' : 'bg-white'}
+                                ${isProductReordering ? 'cursor-grab active:cursor-grabbing' : ''}
+                                ${draggedProductId === product.id ? 'opacity-40' : ''}
+                                ${dropTargetProductId === product.id ? 'border-l-2 border-l-indigo-500' : ''}
+                            `}
+                        >
+                            <div className="h-48 p-2 flex flex-col items-center justify-between gap-2 border-b border-slate-200 sticky top-0 bg-inherit z-10">
+                                <div className="flex items-center w-full gap-2">
+                                     {isProductReordering ? (
+                                      <Bars2Icon className="h-5 w-5 text-slate-400 flex-shrink-0" aria-hidden="true" />
+                                    ) : (
+                                      <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => handleToggleProductSelection(product.id)}
+                                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                          aria-label={`Select ${productName}`}
+                                      />
+                                    )}
+                                    <p className="font-bold text-slate-800 truncate flex-grow min-w-0" title={productName}>{productName}</p>
+                                </div>
+                                <img src={product.imageUrl} alt={productName} className="w-full h-24 object-cover rounded-md bg-slate-100" />
+                                <button onClick={() => handleOpenProductModal(product)} className="text-sm text-slate-500 hover:text-indigo-600 transition-colors w-full text-center">
+                                    Edit
+                                </button>
+                            </div>
+                            {displayedSpecs.map(spec => (
+                                <div key={spec.id} className="h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600">
+                                    <span className="truncate">{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
 
 
 const App: React.FC = () => {
@@ -121,7 +395,20 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const savedProducts = localStorage.getItem('comparison-tool-products');
-      return savedProducts ? JSON.parse(savedProducts) : initialProducts;
+      if (savedProducts) {
+        const parsed = JSON.parse(savedProducts);
+        if (parsed.length > 0 && parsed[0].name && !parsed[0].brand) {
+          return parsed.map((p: any) => {
+            const nameParts = p.name.split(' ');
+            const brand = nameParts[0] || '';
+            const model = nameParts.slice(1).join(' ') || '';
+            const { name, ...rest } = p;
+            return { ...rest, brand, model };
+          });
+        }
+        return parsed;
+      }
+      return initialProducts;
     } catch (error) {
       console.error('Could not load products from local storage', error);
       return initialProducts;
@@ -137,8 +424,11 @@ const App: React.FC = () => {
   const [initialSettings] = useState(getInitialSettings);
   const [selectedBrand, setSelectedBrand] = useState(initialSettings.selectedBrand);
   const [modelQuery, setModelQuery] = useState(initialSettings.modelQuery);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [isBrandFilterOpen, setIsBrandFilterOpen] = useState(false);
+  const [isModelFilterOpen, setIsModelFilterOpen] = useState(false);
   const brandFilterRef = useRef<HTMLDivElement>(null);
+  const modelFilterRef = useRef<HTMLDivElement>(null);
 
   const [selectedSpecIds, setSelectedSpecIds] = useState<string[]>(initialSettings.selectedSpecIds);
   const [isSpecFilterOpen, setIsSpecFilterOpen] = useState(false);
@@ -150,6 +440,7 @@ const App: React.FC = () => {
 
   // Reordering Mode State
   const [isSpecReordering, setIsSpecReordering] = useState(false);
+  const [isProductReordering, setIsProductReordering] = useState(false);
 
   // Drag and drop state for specs
   const [draggedSpecId, setDraggedSpecId] = useState<string | null>(null);
@@ -163,9 +454,6 @@ const App: React.FC = () => {
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [chartingSpec, setChartingSpec] = useState<Spec | null>(null);
 
-  // Hover state for row highlighting
-  const [hoveredSpecId, setHoveredSpecId] = useState<string | null>(null);
-
   // Save settings confirmation state
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   
@@ -175,6 +463,8 @@ const App: React.FC = () => {
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, message: '', onConfirm: () => {} });
+
+  const [viewMode, setViewMode] = useState<ViewMode>(initialSettings.viewMode);
 
 
   useEffect(() => {
@@ -201,12 +491,19 @@ const App: React.FC = () => {
         if (brandFilterRef.current && !brandFilterRef.current.contains(event.target as Node)) {
             setIsBrandFilterOpen(false);
         }
+        if (modelFilterRef.current && !modelFilterRef.current.contains(event.target as Node)) {
+            setIsModelFilterOpen(false);
+        }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
         document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+    
+  useEffect(() => {
+    setSelectedModels([]);
+  }, [selectedBrand]);
 
   const handleOpenSpecModal = (spec: Spec | null = null) => {
     setEditingSpec(spec);
@@ -335,11 +632,23 @@ const App: React.FC = () => {
         }
     });
   }, []);
+  
+  const handleModelSelection = useCallback((model: string) => {
+    setSelectedModels(prev => {
+        const newSelected = new Set(prev);
+        if (newSelected.has(model)) {
+            newSelected.delete(model);
+        } else {
+            newSelected.add(model);
+        }
+        return Array.from(newSelected);
+    });
+  }, []);
 
   const handleImportData = useCallback((importedProducts: any[]) => {
       try {
-          if (!Array.isArray(importedProducts) || !importedProducts.every(p => p.name && typeof p.specs === 'object')) {
-              throw new Error('Invalid data structure in JSON file.');
+          if (!Array.isArray(importedProducts) || !importedProducts.every(p => p.brand && p.model && typeof p.specs === 'object')) {
+              throw new Error('Invalid data structure. Each product must have "brand", "model", and "specs" properties.');
           }
 
           const specNameSet = new Set<string>();
@@ -366,7 +675,8 @@ const App: React.FC = () => {
               }
               return {
                   id: uuidv4(),
-                  name: product.name,
+                  brand: product.brand,
+                  model: product.model,
                   imageUrl: product.imageUrl || `https://picsum.photos/seed/imported${Math.random()}/400/300`,
                   specs: newProductSpecs,
               };
@@ -394,6 +704,7 @@ const App: React.FC = () => {
             modelQuery,
             selectedSpecIds,
             sortConfig,
+            viewMode,
         };
         localStorage.setItem('comparison-tool-settings', JSON.stringify(settingsToSave));
         
@@ -405,7 +716,7 @@ const App: React.FC = () => {
         console.error('Could not save settings to local storage', error);
         alert('Failed to save settings.');
     }
-  }, [selectedBrand, modelQuery, selectedSpecIds, sortConfig]);
+  }, [selectedBrand, modelQuery, selectedSpecIds, sortConfig, viewMode]);
 
   const requestSort = useCallback((key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -428,23 +739,36 @@ const App: React.FC = () => {
   }, [specs, selectedSpecIds]);
 
   const uniqueBrands = useMemo(() => {
-    const brands = new Set(products.map(p => p.name.split(' ')[0]));
+    const brands = new Set(products.map(p => p.brand));
     return ['All Brands', ...Array.from(brands).sort()];
   }, [products]);
+  
+  const modelsForSelectedBrand = useMemo(() => {
+    if (selectedBrand === 'All Brands') {
+        return [];
+    }
+    const brandModels = products
+        .filter(p => p.brand === selectedBrand)
+        .map(p => p.model);
+    return [...new Set(brandModels)].sort();
+  }, [products, selectedBrand]);
 
   const filteredProducts = useMemo(() => {
     let tempProducts = [...products];
 
     if (selectedBrand !== 'All Brands') {
-        tempProducts = tempProducts.filter(p => p.name.split(' ')[0] === selectedBrand);
-    }
-
-    const query = modelQuery.toLowerCase().trim();
-    if (query) {
-        tempProducts = tempProducts.filter(p => p.name.toLowerCase().includes(query));
+        tempProducts = tempProducts.filter(p => p.brand === selectedBrand);
+        if (selectedModels.length > 0) {
+            tempProducts = tempProducts.filter(p => selectedModels.includes(p.model));
+        }
+    } else {
+        const query = modelQuery.toLowerCase().trim();
+        if (query) {
+            tempProducts = tempProducts.filter(p => p.model.toLowerCase().includes(query));
+        }
     }
     return tempProducts;
-  }, [products, selectedBrand, modelQuery]);
+  }, [products, selectedBrand, modelQuery, selectedModels]);
 
   const sortedProducts = useMemo(() => {
     let sortableProducts = [...filteredProducts];
@@ -453,8 +777,8 @@ const App: React.FC = () => {
             const { key, direction } = sortConfig;
             const dir = direction === 'ascending' ? 1 : -1;
 
-            const valA = key === 'name' ? a.name : a.specs[key] || '';
-            const valB = key === 'name' ? b.name : b.specs[key] || '';
+            const valA = key === 'name' ? `${a.brand} ${a.model}` : a.specs[key] || '';
+            const valB = key === 'name' ? `${b.brand} ${b.model}` : b.specs[key] || '';
 
             if (!valA) return 1;
             if (!valB) return -1;
@@ -546,7 +870,7 @@ const App: React.FC = () => {
   const handleProductDrop = (e: React.DragEvent<HTMLDivElement>, dropProduct: Product) => {
     e.preventDefault();
     if (!draggedProductId) return;
-
+    
     // Use the main products array for reordering
     const originalProducts = [...products];
     const draggedIndex = originalProducts.findIndex(p => p.id === draggedProductId);
@@ -571,27 +895,23 @@ const App: React.FC = () => {
     setDropTargetProductId(null);
   };
 
-
-  const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode; className?: string; }> = ({ sortKey, children, className }) => (
-    <button onClick={() => requestSort(sortKey)} className={`flex items-center gap-1 group ${className}`}>
-        {children}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            {sortConfig?.key === sortKey ? (
-                sortConfig.direction === 'ascending' ? <ChevronUpIcon className="h-4 w-4 text-indigo-600" /> : <ChevronDownIcon className="h-4 w-4 text-indigo-600" />
-            ) : (
-               <ChevronUpIcon className="h-4 w-4 text-slate-400" />
-            )}
-        </div>
-    </button>
-  );
-
+  const viewProps = {
+    sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection,
+    handleOpenProductModal, isProductReordering, handleProductDragStart,
+    handleProductDragEnd, handleProductDragOver, handleProductDragLeave, handleProductDrop,
+    draggedProductId, dropTargetProductId, requestSort, sortConfig,
+    isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
+    handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
+    isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+  };
+  
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-12">
       <header className="mb-10">
         <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight">Product Comparison</h1>
         <p className="text-xl text-slate-500 mt-3">An elegant way to compare product specifications.</p>
-        <div className="mt-8 flex flex-wrap gap-4 items-center">
-            <div ref={brandFilterRef} className="relative w-full sm:w-auto flex-grow sm:flex-grow-0 sm:w-48">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+            <div ref={brandFilterRef} className="relative">
                 <button
                     onClick={() => setIsBrandFilterOpen(prev => !prev)}
                     className="w-full px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition flex justify-between items-center text-left"
@@ -620,22 +940,68 @@ const App: React.FC = () => {
                     </div>
                 )}
             </div>
-            <input
-                type="text"
-                value={modelQuery}
-                onChange={(e) => setModelQuery(e.target.value)}
-                placeholder="Filter by model..."
-                className="w-full sm:w-auto flex-grow px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                aria-label="Filter by model"
-            />
-            <div ref={specFilterRef} className="relative w-full sm:w-auto flex-grow">
+            {selectedBrand !== 'All Brands' ? (
+                 <div ref={modelFilterRef} className="relative">
+                    <button
+                        onClick={() => setIsModelFilterOpen(prev => !prev)}
+                        disabled={modelsForSelectedBrand.length === 0}
+                        className="w-full px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition flex justify-between items-center text-left disabled:bg-slate-100 disabled:cursor-not-allowed"
+                        aria-haspopup="true"
+                        aria-expanded={isModelFilterOpen}
+                    >
+                        <span className="truncate">
+                            {modelsForSelectedBrand.length === 0 ? 'No models available' : (selectedModels.length > 0 ? `${selectedModels.length} model(s) selected` : 'Filter by model...')}
+                        </span>
+                        <ChevronDownIcon className={`h-5 w-5 text-slate-400 transition-transform ${isModelFilterOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isModelFilterOpen && modelsForSelectedBrand.length > 0 && (
+                        <div className="absolute z-20 mt-2 w-full sm:w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                            <div className="p-2">
+                                <div className="max-h-60 overflow-y-auto p-2">
+                                    {modelsForSelectedBrand.map(model => (
+                                        <label key={model} className="flex items-center space-x-3 py-2 px-2 rounded-md hover:bg-slate-50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedModels.includes(model)}
+                                                onChange={() => handleModelSelection(model)}
+                                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-sm text-slate-600">{model}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {selectedModels.length > 0 && (
+                                     <div className="mt-2 p-2 border-t border-slate-100 flex justify-end">
+                                        <button 
+                                            onClick={() => { setSelectedModels([]); setIsModelFilterOpen(false); }} 
+                                            className="px-3 py-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 focus:outline-none"
+                                        >
+                                            Clear All
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <input
+                    type="text"
+                    value={modelQuery}
+                    onChange={(e) => setModelQuery(e.target.value)}
+                    placeholder="Filter by model..."
+                    className="w-full px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    aria-label="Filter by model"
+                />
+            )}
+            <div ref={specFilterRef} className="relative">
                 <button
                     onClick={() => setIsSpecFilterOpen(prev => !prev)}
                     className="w-full px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition flex justify-between items-center"
                     aria-haspopup="true"
                     aria-expanded={isSpecFilterOpen}
                 >
-                    <span>
+                    <span className="truncate">
                         {selectedSpecIds.length > 0 ? `${selectedSpecIds.length} spec(s) selected` : 'Filter specifications...'}
                     </span>
                     <ChevronDownIcon className={`h-5 w-5 text-slate-400 transition-transform ${isSpecFilterOpen ? 'rotate-180' : ''}`} />
@@ -672,189 +1038,71 @@ const App: React.FC = () => {
                  <button
                     onClick={() => setIsComparisonModalOpen(true)}
                     disabled={selectedProductIds.size < 2}
-                    className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
                     aria-label="Compare selected products"
                 >
-                    Compare Selected ({selectedProductIds.size})
+                    Compare ({selectedProductIds.size})
                 </button>
+            </div>
+        </div>
+         <div className="mt-6 flex flex-wrap gap-3 items-center border-t border-slate-200 pt-6">
+              <button onClick={() => handleOpenProductModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors justify-center">
+                  <PlusIcon className="h-5 w-5" />
+                  Add Product
+              </button>
+              <button onClick={() => handleOpenSpecModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors justify-center">
+                  <PlusIcon className="h-5 w-5" />
+                  Add Spec
+              </button>
+              {isSpecReordering ? (
+                  <button onClick={() => setIsSpecReordering(false)} className="flex items-center gap-2 text-sm bg-green-50 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-100 transition-colors justify-center">
+                      <CheckIcon className="h-5 w-5" />
+                      Done Reordering
+                  </button>
+              ) : (
+                  <button onClick={() => setIsSpecReordering(true)} className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors justify-center">
+                      <Bars2Icon className="h-5 w-5" />
+                      Reorder Specs
+                  </button>
+              )}
+               {isProductReordering ? (
+                  <button onClick={() => setIsProductReordering(false)} className="flex items-center gap-2 text-sm bg-green-50 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-100 transition-colors justify-center">
+                      <CheckIcon className="h-5 w-5" />
+                      Done Reordering
+                  </button>
+              ) : (
+                  <button onClick={() => setIsProductReordering(true)} className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors justify-center">
+                      <Bars2Icon className="h-5 w-5" />
+                      Reorder Products
+                  </button>
+              )}
+               <button onClick={() => setViewMode(prev => prev === 'product-as-row' ? 'product-as-column' : 'product-as-row')} className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors justify-center" title="Transpose View">
+                  <ArrowsRightLeftIcon className="h-5 w-5" />
+                  Transpose View
+              </button>
+               <div className="flex-grow"></div>
                  <button
                     onClick={() => setIsImportModalOpen(true)}
-                    className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
+                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
                     aria-label="Import data"
                 >
-                    <ArrowUpTrayIcon className="h-5 w-5" />
-                    Import Data
+                    <ArrowUpTrayIcon className="h-5 w-5" /> Import
                 </button>
                 <button
                     onClick={handleSaveSettings}
-                    className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
+                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
                     aria-label="Save current settings"
                 >
-                    <SaveIcon className="h-5 w-5" />
-                    Save Settings
+                    <SaveIcon className="h-5 w-5" /> Save
                 </button>
-            </div>
         </div>
       </header>
-
-      <div className="overflow-x-auto bg-white rounded-xl shadow-lg ring-1 ring-slate-900/5">
-        <div className="flex">
-          {/* Specs Column */}
-          <div className="sticky left-0 bg-white z-10 flex-shrink-0 w-56 border-r border-slate-200">
-            <div className="h-56 flex flex-col justify-between p-4 bg-slate-50/75">
-                <div>
-                  <span className="font-bold text-slate-800 text-lg">Specification</span>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {isSpecReordering ? 'Drag and drop to reorder.' : 'Click Reorder to change order.'}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <button onClick={() => handleOpenSpecModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors w-full justify-center">
-                        <PlusIcon className="h-5 w-5" />
-                        Add Spec
-                    </button>
-                    {isSpecReordering ? (
-                        <button onClick={() => setIsSpecReordering(false)} className="flex items-center gap-2 text-sm bg-green-50 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-100 transition-colors w-full justify-center">
-                            <CheckIcon className="h-5 w-5" />
-                            Done
-                        </button>
-                    ) : (
-                        <button onClick={() => setIsSpecReordering(true)} className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors w-full justify-center">
-                            <Bars2Icon className="h-5 w-5" />
-                            Reorder
-                        </button>
-                    )}
-                </div>
-            </div>
-            {displayedSpecs.map(spec => (
-              <div 
-                key={spec.id}
-                draggable={isSpecReordering}
-                onDragStart={isSpecReordering ? (e) => handleSpecDragStart(e, spec) : undefined}
-                onDragEnd={isSpecReordering ? handleSpecDragEnd : undefined}
-                onDragOver={isSpecReordering ? (e) => handleSpecDragOver(e, spec) : undefined}
-                onDragLeave={isSpecReordering ? handleSpecDragLeave : undefined}
-                onDrop={isSpecReordering ? (e) => handleSpecDrop(e, spec) : undefined}
-                onMouseEnter={() => setHoveredSpecId(spec.id)}
-                onMouseLeave={() => setHoveredSpecId(null)}
-                className={`h-24 px-4 flex items-center justify-between group border-slate-200 transition-colors duration-150
-                    ${isSpecReordering ? 'cursor-grab active:cursor-grabbing' : ''}
-                    ${draggedSpecId === spec.id ? 'opacity-40 bg-slate-100' : ''}
-                    ${!isSpecReordering && hoveredSpecId === spec.id ? 'bg-indigo-100' : 'bg-white'}
-                    ${dropTargetId === spec.id ? 'border-t-2 border-t-indigo-500' : 'border-b'}
-                `}>
-                 <div className="flex items-center gap-2 flex-grow min-w-0">
-                    {isSpecReordering ? (
-                      <Bars2Icon className="h-5 w-5 text-slate-400 cursor-grab flex-shrink-0" aria-hidden="true" />
-                    ) : (
-                        // Use a placeholder to maintain alignment
-                        <div className="w-5 flex-shrink-0" />
-                    )}
-                    
-                    {isSpecReordering ? (
-                        <span className="font-semibold text-slate-700 text-sm truncate" title={spec.name}>{spec.name}</span>
-                    ) : (
-                        <SortableHeader sortKey={spec.id} className="w-full text-left">
-                            <span className="font-semibold text-slate-700 text-sm truncate" title={spec.name}>{spec.name}</span>
-                        </SortableHeader>
-                    )}
-                 </div>
-                 {!isSpecReordering && (
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {isSpecChartable(spec.id, products) && (
-                         <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Visualize data">
-                           <ChartBarIcon className="h-4 w-4" />
-                         </button>
-                      )}
-                      <button onClick={() => handleOpenSpecModal(spec)} className="text-slate-400 hover:text-indigo-600" title="Edit spec"><PencilIcon className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteSpec(spec.id)} className="text-slate-400 hover:text-red-600" title="Delete spec"><TrashIcon className="h-4 w-4" /></button>
-                    </div>
-                 )}
-              </div>
-            ))}
-          </div>
-
-          {/* Products Columns */}
-          <div className="flex">
-            {sortedProducts.map(product => {
-              const isSelected = selectedProductIds.has(product.id);
-              return (
-              <div 
-                  key={product.id}
-                  className={`flex-shrink-0 w-72 transition-all duration-200 ring-2 ring-inset group border-r border-slate-200
-                    ${isSelected ? 'bg-indigo-50 ring-indigo-500' : 'bg-white ring-transparent'}
-                    ${draggedProductId === product.id ? 'opacity-40' : ''}
-                    ${dropTargetProductId === product.id ? 'border-l-4 border-indigo-500' : ''}
-                  `}
-                  onClick={() => handleToggleProductSelection(product.id)}
-                  role="button"
-                  aria-pressed={isSelected}
-                  aria-label={`Select ${product.name}`}
-                  tabIndex={0}
-              >
-                <div 
-                    className="h-56 p-4 border-b border-slate-200 flex flex-col justify-between"
-                    onDrop={(e) => handleProductDrop(e, product)}
-                    onDragOver={(e) => handleProductDragOver(e, product)}
-                    onDragLeave={handleProductDragLeave}
-                >
-                    <div className="relative">
-                        {isSelected && (
-                          <div className="absolute top-0 right-0 h-6 w-6 bg-indigo-600 rounded-full flex items-center justify-center text-white z-20 shadow -mt-1 -mr-1">
-                            <CheckIcon className="h-4 w-4" />
-                          </div>
-                        )}
-                        <div
-                          draggable
-                          onDragStart={(e) => handleProductDragStart(e, product)}
-                          onDragEnd={handleProductDragEnd}
-                          className="cursor-grab"
-                        >
-                            <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md bg-slate-100 pointer-events-none" />
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <h3 className="font-bold text-slate-800 text-center text-lg truncate" title={product.name}>{product.name}</h3>
-                        <div className="flex items-center justify-center gap-4 mt-2">
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenProductModal(product);
-                                }} 
-                                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors p-1"
-                                title="Edit Product"
-                            >
-                                <PencilIcon className="h-4 w-4" />
-                                Edit
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {displayedSpecs.map(spec => (
-                  <div 
-                    key={spec.id} 
-                    onMouseEnter={() => setHoveredSpecId(spec.id)}
-                    onMouseLeave={() => setHoveredSpecId(null)}
-                    className={`h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : 'bg-transparent'}`}
-                  >
-                    {product.specs[spec.id] || <span className="text-slate-400">-</span>}
-                  </div>
-                ))}
-              </div>
-            )})}
-             <div className="flex-shrink-0 w-72 flex items-center justify-center border-r border-slate-200 px-4">
-                <div className="h-full flex items-center justify-center p-4 w-full">
-                     <button onClick={() => handleOpenProductModal()} className="flex items-center justify-center flex-col gap-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-lg w-full h-full transition-colors">
-                        <PlusIcon className="h-8 w-8" />
-                        <span className="font-semibold">Add Product</span>
-                    </button>
-                </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      
+      {viewMode === 'product-as-row' ? (
+        <ProductAsRowView {...viewProps} />
+      ) : (
+        <ProductAsColumnView {...viewProps} />
+      )}
       
       {isSpecModalOpen && (
         <SpecFormModal 
@@ -912,7 +1160,7 @@ const App: React.FC = () => {
                 className="bg-white rounded-lg shadow-xl w-full max-w-7xl h-[90vh] flex flex-col transform transition-all" 
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-4 border-b border-slate-200">
+                <div className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0">
                     <h3 className="text-xl font-semibold text-slate-800">Comparing {selectedProducts.length} Products</h3>
                     <button
                         onClick={() => setIsComparisonModalOpen(false)}
@@ -923,53 +1171,83 @@ const App: React.FC = () => {
                     </button>
                 </div>
                 <div className="overflow-auto flex-grow">
-                     <div className="flex">
-                        <div className="sticky left-0 bg-white z-10 flex-shrink-0 w-56 border-r border-slate-200">
-                             <div className="h-56 flex items-center p-4 bg-slate-50">
-                                <span className="font-bold text-slate-800 text-lg">Specification</span>
-                            </div>
-                            {displayedSpecs.map(spec => (
-                                <div 
-                                    key={spec.id} 
-                                    onMouseEnter={() => setHoveredSpecId(spec.id)}
-                                    onMouseLeave={() => setHoveredSpecId(null)}
-                                    className={`h-24 px-4 flex items-center justify-between border-b border-slate-200 group transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : ''}`}
-                                >
-                                    <span className="font-semibold text-slate-700 text-sm">{spec.name}</span>
-                                    {isSpecChartable(spec.id, selectedProducts) && (
-                                        <button 
-                                            onClick={() => handleOpenChartModal(spec)}
-                                            className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" 
-                                            title="Visualize data"
-                                        >
-                                            <ChartBarIcon className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex">
-                            {selectedProducts.map(product => (
-                                <div key={product.id} className="flex-shrink-0 w-72 border-r border-slate-200">
-                                    <div className="h-56 p-4 border-b border-slate-200">
-                                        <img src={product.imageUrl} alt={product.name} className="w-full h-28 object-cover rounded-md mb-3 bg-slate-100" />
-                                        <h3 className="font-bold text-slate-800 text-center text-lg">{product.name}</h3>
+                     {viewMode === 'product-as-row' ? (
+                         <div className="min-w-max">
+                            {/* Header */}
+                            <div className="flex sticky top-0 bg-slate-100/75 backdrop-blur-sm z-10 border-b-2 border-slate-300">
+                                 <div className="flex-shrink-0 w-64 p-3 flex items-center border-r border-slate-200 font-bold text-slate-800 text-sm">Product</div>
+                                  {displayedSpecs.map(spec => (
+                                    <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center justify-between border-r border-slate-200 group font-bold text-slate-800 text-sm">
+                                        <span className="truncate">{spec.name}</span>
+                                         {isSpecChartable(spec.id, selectedProducts) && (
+                                            <button 
+                                                onClick={() => handleOpenChartModal(spec)}
+                                                className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                                title="Visualize data"
+                                            >
+                                                <ChartBarIcon className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
-                                    {displayedSpecs.map(spec => (
-                                        <div 
-                                            key={spec.id} 
-                                            onMouseEnter={() => setHoveredSpecId(spec.id)}
-                                            onMouseLeave={() => setHoveredSpecId(null)}
-                                            className={`h-24 px-4 flex items-center border-b border-slate-200 text-slate-600 text-sm transition-colors duration-150 ${hoveredSpecId === spec.id ? 'bg-indigo-100' : ''}`}
-                                        >
-                                            {product.specs[spec.id] || <span className="text-slate-400">-</span>}
+                                  ))}
+                            </div>
+                            {/* Body */}
+                            {selectedProducts.map(product => {
+                                const productName = `${product.brand} ${product.model}`;
+                                return (
+                                    <div key={product.id} className="flex items-stretch border-b border-slate-200 bg-white hover:bg-slate-50">
+                                        <div className="flex-shrink-0 w-64 p-2 flex items-center gap-3 border-r border-slate-200">
+                                            <img src={product.imageUrl} alt={productName} className="w-20 h-16 object-cover rounded-md bg-slate-100 flex-shrink-0" />
+                                            <div className="flex-grow min-w-0">
+                                                <p className="font-bold text-slate-800 truncate" title={productName}>{productName}</p>
+                                            </div>
                                         </div>
-                                    ))}
+                                        {displayedSpecs.map(spec => (
+                                            <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600">
+                                                <span className="truncate"> {product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })}
+                         </div>
+                     ) : (
+                        <div className="flex min-w-max">
+                            {/* Specs Header Column */}
+                            <div className="flex-shrink-0 sticky left-0 bg-slate-100/75 backdrop-blur-sm z-10 border-r-2 border-slate-300">
+                                <div className="h-48 p-3 flex items-end border-b border-slate-200">
+                                    <span className="font-bold text-slate-800 text-sm">Product</span>
                                 </div>
-                            ))}
+                                {displayedSpecs.map(spec => (
+                                    <div key={spec.id} className="h-12 w-64 p-3 flex items-center justify-between border-b border-slate-200 group">
+                                        <span className="font-bold text-slate-800 text-sm truncate">{spec.name}</span>
+                                        {isSpecChartable(spec.id, selectedProducts) && (
+                                            <button onClick={() => handleOpenChartModal(spec)} className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Visualize data">
+                                                <ChartBarIcon className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Products Columns */}
+                            {selectedProducts.map(product => {
+                                const productName = `${product.brand} ${product.model}`;
+                                return (
+                                    <div key={product.id} className="flex-shrink-0 w-56 border-r border-slate-200 bg-white">
+                                        <div className="h-48 p-2 flex flex-col items-center justify-center gap-2 border-b border-slate-200 sticky top-0 bg-inherit z-10">
+                                            <p className="font-bold text-slate-800 truncate text-center" title={productName}>{productName}</p>
+                                            <img src={product.imageUrl} alt={productName} className="w-full h-24 object-cover rounded-md bg-slate-100" />
+                                        </div>
+                                        {displayedSpecs.map(spec => (
+                                            <div key={spec.id} className="h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600">
+                                                <span className="truncate">{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    </div>
+                     )}
                 </div>
             </div>
         </div>

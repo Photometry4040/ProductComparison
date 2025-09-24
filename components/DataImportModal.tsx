@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import Modal from './Modal';
 import { Product, Spec } from '../types';
@@ -13,7 +14,7 @@ interface DataImportModalProps {
 /**
  * A simple CSV to JSON converter.
  * Assumes the first row is the header.
- * 'name' and 'imageUrl' are top-level properties, others are moved into a 'specs' object.
+ * 'brand', 'model', and 'imageUrl' are top-level properties, others are moved into a 'specs' object.
  * Note: This parser is simple and does not handle commas within quoted values.
  */
 const parseCsvToJson = (csvText: string): any[] => {
@@ -23,10 +24,11 @@ const parseCsvToJson = (csvText: string): any[] => {
     }
     
     const headers = lines[0].split(',').map(h => h.trim());
-    const nameIndex = headers.indexOf('name');
+    const brandIndex = headers.indexOf('brand');
+    const modelIndex = headers.indexOf('model');
     
-    if (nameIndex === -1) {
-        throw new Error("CSV must contain a 'name' column header.");
+    if (brandIndex === -1 || modelIndex === -1) {
+        throw new Error("CSV must contain 'brand' and 'model' column headers.");
     }
 
     const products = [];
@@ -34,20 +36,21 @@ const parseCsvToJson = (csvText: string): any[] => {
         if (!lines[i].trim()) continue; // Skip empty lines
         const values = lines[i].split(',').map(v => v.trim());
         
-        const product: { name: string; imageUrl?: string; specs: { [key: string]: string } } = {
-            name: values[headers.indexOf('name')] || '',
+        const product: { brand: string; model: string; imageUrl?: string; specs: { [key: string]: string } } = {
+            brand: values[brandIndex] || '',
+            model: values[modelIndex] || '',
             specs: {}
         };
 
         headers.forEach((header, index) => {
             if (header === 'imageUrl') {
                 product.imageUrl = values[index] || '';
-            } else if (header !== 'name') {
+            } else if (header !== 'brand' && header !== 'model') {
                 product.specs[header] = values[index] || '';
             }
         });
 
-        if(product.name) {
+        if(product.brand && product.model) {
             products.push(product);
         }
     }
@@ -83,15 +86,14 @@ const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClose, onIm
     };
     
     const handleDownloadJsonTemplate = () => {
-        const specIdToNameMap = new Map(currentSpecs.map(s => [s.id, s.name]));
         const templateData = currentProducts.map(p => {
             const userFriendlySpecs: { [key: string]: string } = {};
-            // Use currentSpecs to maintain a consistent order
             currentSpecs.forEach(spec => {
                  userFriendlySpecs[spec.name] = p.specs[spec.id] || '';
             });
             return {
-                name: p.name,
+                brand: p.brand,
+                model: p.model,
                 imageUrl: p.imageUrl,
                 specs: userFriendlySpecs
             };
@@ -111,19 +113,18 @@ const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClose, onIm
     
     const handleDownloadCsvTemplate = () => {
         const sortedSpecs = [...currentSpecs].sort((a, b) => a.name.localeCompare(b.name));
-        const headers = ['name', 'imageUrl', ...sortedSpecs.map(s => s.name)];
+        const headers = ['brand', 'model', 'imageUrl', ...sortedSpecs.map(s => s.name)];
         const headerRow = headers.join(',');
 
         let content = headerRow;
 
-        // Optionally add the current products as rows for a complete export/template
         const productRows = currentProducts.map(p => {
             const row = [
-                p.name,
+                p.brand,
+                p.model,
                 p.imageUrl,
                 ...sortedSpecs.map(spec => p.specs[spec.id] || '')
             ];
-            // Basic CSV escaping: if a value contains a comma, wrap it in double quotes.
             return row.map(val => {
                 const strVal = String(val);
                 return strVal.includes(',') ? `"${strVal}"` : strVal;
@@ -148,7 +149,8 @@ const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClose, onIm
 
     const jsonExample = `[
   {
-    "name": "BenQ TK710",
+    "brand": "BenQ",
+    "model": "TK710",
     "imageUrl": "https://...",
     "specs": {
       "MSRP (USD)": "$3,499",
@@ -156,8 +158,8 @@ const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClose, onIm
     }
   }
 ]`;
-    const csvExample = `name,imageUrl,MSRP (USD),Resolution
-BenQ TK710,https://...,$3,499,3840x2160`;
+    const csvExample = `brand,model,imageUrl,MSRP (USD),Resolution
+BenQ,TK710,https://...,$3,499,3840x2160`;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Import Product Data">
