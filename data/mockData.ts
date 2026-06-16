@@ -132,6 +132,11 @@ export const SEED_PRODUCTS: Product[] = [
     [S.brightness]: '2,300 lumens', [S.resolution]: '3840x2160', [S.contrast]: '5,000:1', [S.hdr]: 'Dolby Vision / HDR10',
     [S.panelTech]: 'DLP', [S.speakers]: '12 W × 2', [S.connectivity]: 'HDMI 2.1, Android TV', [S.powerConsumption]: '300 W',
     [S.weight]: '5.2 kg', [S.lightSource]: '25,000 hrs' } }),
+  make({ brand: 'LG', model: 'CineBeam S', category: 'Home Theater Projector', imageUrl: '/products/lg-cinebeam-s.jpg', specs: {
+    [S.price]: '$1,300', [S.status]: 'Shipping', [S.released]: '2025', [S.warranty]: '1 Year',
+    [S.brightness]: '500 lumens', [S.resolution]: '3840x2160', [S.contrast]: '450,000:1', [S.hdr]: 'HDR10 / HLG',
+    [S.panelTech]: 'DLP', [S.connectivity]: 'HDMI, USB-C, webOS', [S.powerConsumption]: '73 W',
+    [S.weight]: '1.9 kg' } }),
 
   // --- Business / Education Projectors ---------------------------------
   make({ brand: 'Epson', model: 'PowerLite L630U', category: 'Business / Education Projector', imageUrl: '/products/epson-powerlite-l630u.jpg', specs: {
@@ -164,6 +169,31 @@ export const SEED_PRODUCTS: Product[] = [
     [S.brightness]: '7,000 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '1,450,000:1',
     [S.panelTech]: 'DLP', [S.connectivity]: 'HDBaseT, HDMI x2, SDI, LAN', [S.powerConsumption]: '720 W',
     [S.weight]: '22.5 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'LG', model: 'ProBeam BF60RG', category: 'Business / Education Projector', imageUrl: '/products/lg-probeam-bf60rg.jpg', specs: {
+    [S.price]: '$2,999', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
+    [S.brightness]: '6,000 lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '460 W',
+    [S.weight]: '9.2 kg' } }),
+  make({ brand: 'LG', model: 'ProBeam BU50RG', category: 'Business / Education Projector', imageUrl: '/products/lg-probeam-bu50rg.jpg', specs: {
+    [S.price]: '$3,399', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
+    [S.brightness]: '5,000 lumens', [S.resolution]: '3840x2160', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '400 W',
+    [S.weight]: '9.7 kg' } }),
+  make({ brand: 'LG', model: 'ProBeam BF50RG', category: 'Business / Education Projector', imageUrl: '/products/lg-probeam-bf50rg.jpg', specs: {
+    [S.price]: '$2,399', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
+    [S.brightness]: '5,000 lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '400 W',
+    [S.weight]: '9.2 kg' } }),
+  make({ brand: 'LG', model: 'ProBeam BU53RG', category: 'Business / Education Projector', imageUrl: '/products/lg-probeam-bu53rg.jpg', specs: {
+    [S.price]: '$4,500', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '3 Years',
+    [S.brightness]: '5,000 lumens', [S.resolution]: '3840x2160', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '380 W',
+    [S.weight]: '9.7 kg', [S.lightSource]: '15,000 hrs' } }),
+  make({ brand: 'LG', model: 'ProBeam BU60RG', category: 'Business / Education Projector', imageUrl: '/products/lg-probeam-bu60rg.jpg', specs: {
+    [S.price]: '$3,999', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '3 Years',
+    [S.brightness]: '6,000 lumens', [S.resolution]: '3840x2160', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '460 W',
+    [S.weight]: '9.7 kg' } }),
 
   // --- Professional Monitors -------------------------------------------
   make({ brand: 'Apple', model: 'Pro Display XDR', category: 'Professional Monitor', specs: {
