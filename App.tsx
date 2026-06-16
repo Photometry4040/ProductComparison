@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, memo, lazy, Suspense } from 'react';
 import { Product, Spec } from './types';
 import { PencilIcon, TrashIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, XMarkIcon, CheckIcon, ArrowUpTrayIcon, Bars2Icon, ChartBarIcon, SaveIcon, ArrowsRightLeftIcon } from './components/icons';
 import SpecFormModal from './components/SpecFormModal';
 import ProductFormModal from './components/ProductFormModal';
 import DataImportModal from './components/DataImportModal';
-import ChartModal from './components/ChartModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import DecisionPanel from './components/DecisionPanel';
-import RadarChartModal from './components/RadarChartModal';
+import ProductCardView from './components/ProductCardView';
+// recharts is heavy; load the chart modals (and recharts) only when opened.
+const ChartModal = lazy(() => import('./components/ChartModal'));
+const RadarChartModal = lazy(() => import('./components/RadarChartModal'));
 import { SEED_SPECS, SEED_PRODUCTS } from './data/mockData';
 import { computeBestWorstMap, rankCell, withInferredMeta, isScorableSpec } from './utils/specValue';
 // FIX: Suppress TS error for react-window import, likely due to missing `@types/react-window`.
@@ -1205,11 +1207,24 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      {viewMode === 'product-as-row' ? (
-        <ProductAsRowView {...viewProps} />
-      ) : (
-        <ProductAsColumnView {...viewProps} />
-      )}
+      {/* Desktop: full comparison table. Mobile: stacked card view. */}
+      <div className="hidden lg:block">
+        {viewMode === 'product-as-row' ? (
+          <ProductAsRowView {...viewProps} />
+        ) : (
+          <ProductAsColumnView {...viewProps} />
+        )}
+      </div>
+      <div className="lg:hidden">
+        <ProductCardView
+          products={sortedProducts}
+          specs={finalDisplayedSpecs}
+          selectedProductIds={selectedProductIds}
+          onToggleSelect={handleToggleProductSelection}
+          onEdit={handleOpenProductModal}
+          bestWorstMap={bestWorstMap}
+        />
+      </div>
       
       {isSpecModalOpen && (
         <SpecFormModal 
@@ -1241,14 +1256,25 @@ const App: React.FC = () => {
         />
       )}
 
-      {isChartModalOpen && (
-        <ChartModal
-          isOpen={isChartModalOpen}
-          onClose={handleCloseModals}
-          spec={chartingSpec}
-          products={isComparisonModalOpen ? selectedProducts : products}
-        />
-      )}
+      <Suspense fallback={null}>
+        {isChartModalOpen && (
+          <ChartModal
+            isOpen={isChartModalOpen}
+            onClose={handleCloseModals}
+            spec={chartingSpec}
+            products={isComparisonModalOpen ? selectedProducts : products}
+          />
+        )}
+
+        {isRadarModalOpen && (
+          <RadarChartModal
+            isOpen={isRadarModalOpen}
+            onClose={() => setIsRadarModalOpen(false)}
+            products={productsToScore}
+            specs={specs}
+          />
+        )}
+      </Suspense>
 
       {isDecisionPanelOpen && (
         <DecisionPanel
@@ -1260,15 +1286,6 @@ const App: React.FC = () => {
           onWeightsChange={setWeights}
           onResetWeights={handleResetWeights}
           priceSpecId={priceSpecId}
-        />
-      )}
-
-      {isRadarModalOpen && (
-        <RadarChartModal
-          isOpen={isRadarModalOpen}
-          onClose={() => setIsRadarModalOpen(false)}
-          products={productsToScore}
-          specs={specs}
         />
       )}
 

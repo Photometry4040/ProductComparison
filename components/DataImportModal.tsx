@@ -12,30 +12,58 @@ interface DataImportModalProps {
 }
 
 /**
- * A simple CSV to JSON converter.
- * Assumes the first row is the header.
- * 'brand', 'model', and 'imageUrl' are top-level properties, others are moved into a 'specs' object.
- * Note: This parser is simple and does not handle commas within quoted values.
+ * Tokenize CSV text into a 2D array of cells per RFC 4180.
+ * Honors quoted fields containing commas, escaped quotes ("" -> "), and
+ * newlines inside quotes.
+ */
+const parseCsvRows = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (text[i + 1] === '"') { field += '"'; i += 2; continue; } // escaped quote
+                inQuotes = false; i++; continue;
+            }
+            field += ch; i++; continue;
+        }
+        if (ch === '"') { inQuotes = true; i++; continue; }
+        if (ch === ',') { row.push(field); field = ''; i++; continue; }
+        if (ch === '\r') { i++; continue; }
+        if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+        field += ch; i++;
+    }
+    if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+    return rows;
+};
+
+/**
+ * Convert CSV text to product JSON. The first row is the header.
+ * 'brand', 'model', and 'imageUrl' are top-level properties, others become
+ * entries in a 'specs' object. Quoted values with embedded commas are handled.
  */
 const parseCsvToJson = (csvText: string): any[] => {
-    const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length < 2) {
+    const rows = parseCsvRows(csvText).filter(r => r.some(c => c.trim() !== ''));
+    if (rows.length < 2) {
         throw new Error("CSV must have a header row and at least one data row.");
     }
-    
-    const headers = lines[0].split(',').map(h => h.trim());
+
+    const headers = rows[0].map(h => h.trim());
     const brandIndex = headers.indexOf('brand');
     const modelIndex = headers.indexOf('model');
-    
+
     if (brandIndex === -1 || modelIndex === -1) {
         throw new Error("CSV must contain 'brand' and 'model' column headers.");
     }
 
     const products = [];
-    for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue; // Skip empty lines
-        const values = lines[i].split(',').map(v => v.trim());
-        
+    for (let i = 1; i < rows.length; i++) {
+        const values = rows[i].map(v => v.trim());
+
         const product: { brand: string; model: string; imageUrl?: string; specs: { [key: string]: string } } = {
             brand: values[brandIndex] || '',
             model: values[modelIndex] || '',
@@ -50,7 +78,7 @@ const parseCsvToJson = (csvText: string): any[] => {
             }
         });
 
-        if(product.brand && product.model) {
+        if (product.brand && product.model) {
             products.push(product);
         }
     }
@@ -126,8 +154,9 @@ const DataImportModal: React.FC<DataImportModalProps> = ({ isOpen, onClose, onIm
                 ...sortedSpecs.map(spec => p.specs[spec.id] || '')
             ];
             return row.map(val => {
-                const strVal = String(val);
-                return strVal.includes(',') ? `"${strVal}"` : strVal;
+                const strVal = String(val ?? '');
+                // Quote (and escape inner quotes) when the value contains a comma, quote or newline.
+                return /[",\n\r]/.test(strVal) ? `"${strVal.replace(/"/g, '""')}"` : strVal;
             }).join(',');
         });
         

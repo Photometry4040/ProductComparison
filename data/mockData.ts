@@ -70,12 +70,29 @@ export const CATEGORIES = [
 
 type SeedProduct = Omit<Product, 'id' | 'imageUrl'> & { imageUrl?: string };
 
+// Category-coded placeholder background so each tile is readable at a glance.
+// To use a real product photo, just set `imageUrl` on the product (or edit it
+// in the UI / import) — it overrides this default via the spread below.
+const CATEGORY_COLOR: Record<string, string> = {
+  'Home Theater Projector': '4f46e5',
+  'Business / Education Projector': '0891b2',
+  'Professional Monitor': '16a34a',
+  'Interactive Display': 'd97706',
+  'LED Video Wall': 'db2777',
+};
+
+const placeholderImage = (brand: string, model: string, category?: string): string => {
+  const bg = CATEGORY_COLOR[category ?? ''] ?? '64748b';
+  const label = encodeURIComponent(`${brand} ${model}`);
+  return `https://placehold.co/400x300/${bg}/ffffff/png?text=${label}`;
+};
+
 let seedCounter = 0;
 const make = (p: SeedProduct): Product => {
   seedCounter++;
   return {
     id: `seed-${seedCounter}`,
-    imageUrl: `https://picsum.photos/seed/av${seedCounter}/400/300`,
+    imageUrl: placeholderImage(p.brand, p.model, p.category),
     ...p,
   };
 };
