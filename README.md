@@ -2,6 +2,9 @@
 
 이 프로젝트는 다양한 제품의 기술 사양을 나란히 놓고 쉽게 비교할 수 있도록 설계된 대화형 웹 애플리케이션입니다. 사용자는 깔끔한 표 형식의 레이아웃에서 제품과 사양을 동적으로 추가, 편집, 삭제 및 관리할 수 있습니다.
 
+
+<img width="1035" height="780" alt="image" src="https://github.com/user-attachments/assets/7df9c6ea-6c9a-4391-b4b8-17db6309557c" />
+
 <details>
 <summary>✨ 주요 기능</summary>
 
