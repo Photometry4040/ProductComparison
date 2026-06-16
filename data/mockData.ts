@@ -97,63 +97,63 @@ const make = (p: SeedProduct): Product => {
 
 export const SEED_PRODUCTS: Product[] = [
   // --- Home Theater Projectors -----------------------------------------
-  make({ brand: 'BenQ', model: 'TK710', category: 'Home Theater Projector', specs: {
-    [S.price]: '$2,999', [S.msrp]: '$3,499', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
-    [S.brightness]: '3,200 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '600,000:1', [S.hdr]: 'HDR10 / HLG',
-    [S.panelTech]: 'DLP', [S.speakers]: '5 W', [S.connectivity]: 'HDMI 2.1 x2, USB', [S.powerConsumption]: '320 W',
-    [S.weight]: '4.2 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'BenQ', model: 'HT4550i', category: 'Home Theater Projector', specs: {
+  make({ brand: 'BenQ', model: 'TK710', category: 'Home Theater Projector', imageUrl: '/products/benq-tk710.jpg', specs: {
+    [S.price]: '$1,899', [S.msrp]: '$3,499', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
+    [S.brightness]: '3,200 lumens', [S.resolution]: '3840x2160', [S.contrast]: '600,000:1', [S.hdr]: 'HDR10 / HLG',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W', [S.connectivity]: 'HDMI 2.1 x2, USB', [S.powerConsumption]: '275 W',
+    [S.weight]: '3.0 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'BenQ', model: 'HT4550i', category: 'Home Theater Projector', imageUrl: '/products/benq-ht4550i.jpg', specs: {
     [S.price]: '$2,999', [S.msrp]: '$2,999', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '3 Years',
-    [S.brightness]: '3,200 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '2,000,000:1', [S.hdr]: 'HDR10+ / HLG',
-    [S.panelTech]: 'DLP', [S.speakers]: '5 W', [S.connectivity]: 'HDMI 2.0b x2, Android TV', [S.powerConsumption]: '350 W',
-    [S.weight]: '4.9 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'Epson', model: 'Pro Cinema LS12000', category: 'Home Theater Projector', specs: {
-    [S.price]: '$4,999', [S.msrp]: '$4,999', [S.status]: 'Shipping', [S.released]: '2021', [S.warranty]: '3 Years',
-    [S.brightness]: '2,700 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '2,500,000:1', [S.hdr]: 'HDR10+ / HLG',
-    [S.panelTech]: '3LCD', [S.connectivity]: 'HDMI 2.1 x2', [S.powerConsumption]: '384 W',
-    [S.weight]: '12.6 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'Sony', model: 'VPL-XW5000ES', category: 'Home Theater Projector', specs: {
-    [S.price]: '$5,999', [S.msrp]: '$5,999', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '3 Years',
-    [S.brightness]: '2,000 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: 'Infinite', [S.hdr]: 'HDR10 / HLG',
-    [S.panelTech]: 'SXRD', [S.connectivity]: 'HDMI 2.1 x2', [S.powerConsumption]: '280 W',
-    [S.weight]: '14.0 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'JVC', model: 'DLA-NZ500', category: 'Home Theater Projector', specs: {
-    [S.price]: '$5,999', [S.msrp]: '$5,999', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
-    [S.brightness]: '2,000 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '40,000:1', [S.hdr]: 'HDR10+ / HLG',
+    [S.brightness]: '3,200 lumens', [S.resolution]: '3840x2160', [S.contrast]: '2,000,000:1', [S.hdr]: 'HDR10+ / HLG',
+    [S.panelTech]: 'DLP', [S.speakers]: '5 W', [S.connectivity]: 'HDMI 2.0b x2, Android TV', [S.powerConsumption]: '385 W',
+    [S.weight]: '6.6 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'Epson', model: 'Pro Cinema LS12000', category: 'Home Theater Projector', imageUrl: '/products/epson-pro-cinema-ls12000.jpg', specs: {
+    [S.price]: '$5,999', [S.msrp]: '$4,999', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '3 Years',
+    [S.brightness]: '2,700 lumens', [S.resolution]: '3840x2160', [S.contrast]: '2,500,000:1', [S.hdr]: 'HDR10+ / HLG',
+    [S.panelTech]: '3LCD', [S.connectivity]: 'HDMI 2.1 x2', [S.powerConsumption]: '311 W',
+    [S.weight]: '12.7 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'Sony', model: 'VPL-XW5000ES', category: 'Home Theater Projector', imageUrl: '/products/sony-vpl-xw5000es.jpg', specs: {
+    [S.price]: '$5,998', [S.msrp]: '$5,999', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '3 Years',
+    [S.brightness]: '2,000 lumens', [S.resolution]: '3840x2160', [S.contrast]: 'Infinite', [S.hdr]: 'HDR10 / HLG',
+    [S.panelTech]: 'SXRD', [S.connectivity]: 'HDMI 2.1 x2', [S.powerConsumption]: '295 W',
+    [S.weight]: '12.7 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'JVC', model: 'DLA-NZ500', category: 'Home Theater Projector', imageUrl: '/products/jvc-dla-nz500.jpg', specs: {
+    [S.price]: '$5,999', [S.msrp]: '$5,999', [S.status]: 'Shipping', [S.released]: '2025', [S.warranty]: '3 Years',
+    [S.brightness]: '2,000 lumens', [S.resolution]: '4096x2160', [S.contrast]: '40,000:1', [S.hdr]: 'HDR10+ / HLG',
     [S.panelTech]: 'D-ILA', [S.connectivity]: 'HDMI 2.1 x2', [S.powerConsumption]: '280 W',
-    [S.weight]: '14.2 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'Epson', model: 'Home Cinema 2350', category: 'Home Theater Projector', specs: {
-    [S.price]: '$999', [S.msrp]: '$1,099', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '2 Years',
-    [S.brightness]: '2,800 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '70,000:1', [S.hdr]: 'HDR10',
-    [S.panelTech]: '3LCD', [S.speakers]: '10 W', [S.connectivity]: 'HDMI x2, Android TV', [S.powerConsumption]: '309 W',
-    [S.weight]: '3.9 kg', [S.lightSource]: '7,500 hrs' } }),
-  make({ brand: 'XGIMI', model: 'Horizon Ultra', category: 'Home Theater Projector', specs: {
+    [S.weight]: '14.6 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'Epson', model: 'Home Cinema 2350', category: 'Home Theater Projector', imageUrl: '/products/epson-home-cinema-2350.jpg', specs: {
+    [S.price]: '$1,399', [S.msrp]: '$1,099', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '2 Years',
+    [S.brightness]: '2,800 lumens', [S.resolution]: '1920x1080', [S.contrast]: '35,000:1', [S.hdr]: 'HDR10',
+    [S.panelTech]: '3LCD', [S.speakers]: '10 W', [S.connectivity]: 'HDMI x2, Android TV', [S.powerConsumption]: '316 W',
+    [S.weight]: '4.1 kg', [S.lightSource]: '4,500 hrs' } }),
+  make({ brand: 'XGIMI', model: 'Horizon Ultra', category: 'Home Theater Projector', imageUrl: '/products/xgimi-horizon-ultra.jpg', specs: {
     [S.price]: '$1,699', [S.msrp]: '$1,999', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '1 Year',
-    [S.brightness]: '2,300 ANSI Lumens', [S.resolution]: '3840x2160', [S.contrast]: '5,000:1', [S.hdr]: 'Dolby Vision / HDR10',
-    [S.panelTech]: 'DLP', [S.speakers]: '24 W', [S.connectivity]: 'HDMI 2.1, Android TV', [S.powerConsumption]: '200 W',
+    [S.brightness]: '2,300 lumens', [S.resolution]: '3840x2160', [S.contrast]: '5,000:1', [S.hdr]: 'Dolby Vision / HDR10',
+    [S.panelTech]: 'DLP', [S.speakers]: '12 W × 2', [S.connectivity]: 'HDMI 2.1, Android TV', [S.powerConsumption]: '300 W',
     [S.weight]: '5.2 kg', [S.lightSource]: '25,000 hrs' } }),
 
   // --- Business / Education Projectors ---------------------------------
-  make({ brand: 'Epson', model: 'PowerLite L630U', category: 'Business / Education Projector', specs: {
-    [S.price]: '$2,499', [S.msrp]: '$2,799', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '5 Years',
-    [S.brightness]: '6,200 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '2,500,000:1',
-    [S.panelTech]: '3LCD', [S.speakers]: '16 W', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '300 W',
+  make({ brand: 'Epson', model: 'PowerLite L630U', category: 'Business / Education Projector', imageUrl: '/products/epson-powerlite-l630u.jpg', specs: {
+    [S.price]: '$3,496', [S.msrp]: '$3,496', [S.status]: 'Shipping', [S.released]: '2021', [S.warranty]: '3 Years',
+    [S.brightness]: '6,200 lumens', [S.resolution]: '1920x1200', [S.contrast]: '2,500,000:1',
+    [S.panelTech]: '3LCD', [S.speakers]: '10 W', [S.connectivity]: 'HDBaseT, HDMI x2, LAN', [S.powerConsumption]: '358 W',
+    [S.weight]: '8.4 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'BenQ', model: 'LU935', category: 'Business / Education Projector', imageUrl: '/products/benq-lu935.jpg', specs: {
+    [S.price]: '$3,699', [S.msrp]: '$3,599', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '3 Years',
+    [S.brightness]: '6,000 lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '10 W × 2', [S.connectivity]: 'HDMI x2, LAN, USB', [S.powerConsumption]: '440 W',
     [S.weight]: '7.0 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'BenQ', model: 'LU935', category: 'Business / Education Projector', specs: {
-    [S.price]: '$3,299', [S.msrp]: '$3,599', [S.status]: 'Shipping', [S.released]: '2023', [S.warranty]: '3 Years',
-    [S.brightness]: '6,000 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
-    [S.panelTech]: 'DLP', [S.speakers]: '10 W', [S.connectivity]: 'HDMI x2, LAN, USB', [S.powerConsumption]: '470 W',
-    [S.weight]: '8.7 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'Panasonic', model: 'PT-VMZ71', category: 'Business / Education Projector', specs: {
-    [S.price]: '$3,199', [S.msrp]: '$3,499', [S.status]: 'Shipping', [S.released]: '2021', [S.warranty]: '3 Years',
-    [S.brightness]: '7,000 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
-    [S.panelTech]: '3LCD', [S.speakers]: '10 W', [S.connectivity]: 'HDMI x2, LAN', [S.powerConsumption]: '400 W',
-    [S.weight]: '9.6 kg', [S.lightSource]: '20,000 hrs' } }),
-  make({ brand: 'Optoma', model: 'ZU607T', category: 'Business / Education Projector', specs: {
-    [S.price]: '$3,499', [S.msrp]: '$3,799', [S.status]: 'Shipping', [S.released]: '2020', [S.warranty]: '5 Years',
-    [S.brightness]: '6,000 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '300,000:1',
-    [S.panelTech]: 'DLP', [S.speakers]: '10 W', [S.connectivity]: 'HDBaseT, HDMI x2', [S.powerConsumption]: '500 W',
-    [S.weight]: '10.5 kg', [S.lightSource]: '30,000 hrs' } }),
+  make({ brand: 'Panasonic', model: 'PT-VMZ71', category: 'Business / Education Projector', imageUrl: '/products/panasonic-pt-vmz71.jpg', specs: {
+    [S.price]: '$4,185', [S.msrp]: '$4,185', [S.status]: 'Shipping', [S.released]: '2022', [S.warranty]: '3 Years',
+    [S.brightness]: '7,000 lumens', [S.resolution]: '1920x1200', [S.contrast]: '3,000,000:1',
+    [S.panelTech]: '3LCD', [S.speakers]: '10 W', [S.connectivity]: 'HDMI x2, LAN', [S.powerConsumption]: '420 W',
+    [S.weight]: '7.0 kg', [S.lightSource]: '20,000 hrs' } }),
+  make({ brand: 'Optoma', model: 'ZU607T', category: 'Business / Education Projector', imageUrl: '/products/optoma-zu607t.jpg', specs: {
+    [S.price]: '$3,349', [S.msrp]: '$3,799', [S.status]: 'Shipping', [S.released]: '2024', [S.warranty]: '3 Years',
+    [S.brightness]: '5,200 lumens', [S.resolution]: '1920x1200', [S.contrast]: '300,000:1',
+    [S.panelTech]: 'DLP', [S.speakers]: '15 W × 2', [S.connectivity]: 'HDBaseT, HDMI x2', [S.powerConsumption]: '366 W',
+    [S.weight]: '6.3 kg', [S.lightSource]: '30,000 hrs' } }),
   make({ brand: 'NEC', model: 'PV800UL', category: 'Business / Education Projector', specs: {
     [S.price]: '$4,500', [S.msrp]: '$4,900', [S.status]: 'Shipping', [S.released]: '2021', [S.warranty]: '3 Years',
     [S.brightness]: '8,000 ANSI Lumens', [S.resolution]: '1920x1200', [S.contrast]: '2,500,000:1',
