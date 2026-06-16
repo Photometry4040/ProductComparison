@@ -6,6 +6,10 @@ import ProductFormModal from './components/ProductFormModal';
 import DataImportModal from './components/DataImportModal';
 import ChartModal from './components/ChartModal';
 import ConfirmationModal from './components/ConfirmationModal';
+import DecisionPanel from './components/DecisionPanel';
+import RadarChartModal from './components/RadarChartModal';
+import { SEED_SPECS, SEED_PRODUCTS } from './data/mockData';
+import { computeBestWorstMap, rankCell, withInferredMeta, isScorableSpec } from './utils/specValue';
 // FIX: Suppress TS error for react-window import, likely due to missing `@types/react-window`.
 // @ts-ignore
 import { FixedSizeList as List } from 'react-window';
@@ -17,94 +21,18 @@ function uuidv4() {
   });
 }
 
-const specData = [
-  { id: uuidv4(), name: 'Street Price (USD)' },
-  { id: uuidv4(), name: 'MSRP (USD)' },
-  { id: uuidv4(), name: 'Status' },
-  { id: uuidv4(), name: 'Released' },
-  { id: uuidv4(), name: 'Warranty' },
-  { id: uuidv4(), name: 'Brightness' },
-  { id: uuidv4(), name: 'Resolution' },
-  { id: uuidv4(), name: 'Aspect Ratio' },
-  { id: uuidv4(), name: 'Dynamic Contrast' },
-  { id: uuidv4(), name: 'Display Type' },
-];
-const initialSpecs: Spec[] = specData;
+const initialSpecs: Spec[] = SEED_SPECS;
+const initialProducts: Product[] = SEED_PRODUCTS;
 
-const initialProducts: Product[] = [
-  {
-    id: uuidv4(),
-    brand: 'BenQ',
-    model: 'TK710',
-    imageUrl: 'https://picsum.photos/seed/proj1/400/300',
-    specs: {
-      [specData[0].id]: '$2,999',
-      [specData[1].id]: '$3,499',
-      [specData[2].id]: 'Shipping',
-      [specData[3].id]: 'May 2024',
-      [specData[4].id]: '3 Years',
-      [specData[5].id]: '3,200 ANSI Lumens',
-      [specData[6].id]: '3840x2160',
-      [specData[7].id]: '16:9 (4K UHD)',
-      [specData[8].id]: '600,000:1',
-      [specData[9].id]: 'DLP',
-    },
-  },
-    {
-    id: uuidv4(),
-    brand: 'BenQ',
-    model: 'HT4550i',
-    imageUrl: 'https://picsum.photos/seed/proj4/400/300',
-    specs: {
-      [specData[0].id]: '$2,999',
-      [specData[1].id]: '$2,999',
-      [specData[2].id]: 'Shipping',
-      [specData[3].id]: 'Apr 2023',
-      [specData[4].id]: '3 Years',
-      [specData[5].id]: '3,200 ANSI Lumens',
-      [specData[6].id]: '3840x2160',
-      [specData[7].id]: '16:9 (4K UHD)',
-      [specData[8].id]: '2,000,000:1',
-      [specData[9].id]: 'DLP',
-    },
-  },
-  {
-    id: uuidv4(),
-    brand: 'Epson',
-    model: 'Pro Cinema LS12000',
-    imageUrl: 'https://picsum.photos/seed/proj2/400/300',
-    specs: {
-      [specData[0].id]: '$4,999',
-      [specData[1].id]: '$4,999',
-      [specData[2].id]: 'Shipping',
-      [specData[3].id]: 'Dec 2021',
-      [specData[4].id]: '3 Years',
-      [specData[5].id]: '2,700 ANSI Lumens',
-      [specData[6].id]: '3840x2160',
-      [specData[7].id]: '16:9 (4K UHD)',
-      [specData[8].id]: '2,500,000:1',
-      [specData[9].id]: '3LCD',
-    },
-  },
-  {
-    id: uuidv4(),
-    brand: 'Sony',
-    model: 'VPL-XW5000ES',
-    imageUrl: 'https://picsum.photos/seed/proj3/400/300',
-    specs: {
-      [specData[0].id]: '$5,999',
-      [specData[1].id]: '$5,999',
-      [specData[2].id]: 'Shipping',
-      [specData[3].id]: 'May 2022',
-      [specData[4].id]: '3 Years',
-      [specData[5].id]: '2,000 ANSI Lumens',
-      [specData[6].id]: '3840x2160',
-      [specData[7].id]: '16:9 (4K UHD)',
-      [specData[8].id]: 'Infinite',
-      [specData[9].id]: 'SXRD',
-    },
-  },
-];
+const ALL_CATEGORIES = 'All Categories';
+
+/** Tailwind classes for a winner / loser cell. */
+const rankCellClass = (rank: 'best' | 'worst' | 'none'): string =>
+  rank === 'best'
+    ? 'bg-green-50 text-green-800 font-semibold'
+    : rank === 'worst'
+      ? 'bg-slate-50 text-slate-400'
+      : '';
 
 
 interface SortConfig {
@@ -126,11 +54,21 @@ const getInitialSettings = () => {
     // Default settings if nothing is saved or an error occurs
     return {
         selectedBrand: 'All Brands',
+        selectedCategory: ALL_CATEGORIES,
         modelQuery: '',
         selectedSpecIds: [],
         sortConfig: { key: 'name', direction: 'ascending' },
         viewMode: 'product-as-row' as ViewMode,
+        differenceOnly: false,
+        weights: null as Record<string, number> | null,
     };
+};
+
+/** Build the default weight map from each spec's declared weight. */
+const defaultWeightsFor = (specs: Spec[]): Record<string, number> => {
+    const w: Record<string, number> = {};
+    specs.forEach(s => { if (isScorableSpec(s)) w[s.id] = s.weight ?? 0; });
+    return w;
 };
 
 const SortableHeader: React.FC<{ sortKey: string; children: React.ReactNode; className?: string; onClick: (key: string) => void; sortConfig: SortConfig | null }> = ({ sortKey, children, className, onClick, sortConfig }) => (
@@ -154,11 +92,11 @@ const ProductAsRowView = memo((props: any) => {
         draggedProductId, dropTargetProductId, requestSort, sortConfig,
         isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
         handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
-        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec, bestWorstMap
     } = props;
 
     const ProductRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
-        const { products, displayedSpecs, selectedProductIds, handleToggleProductSelection, handleOpenProductModal, isProductReordering, handleProductDragStart, handleProductDragEnd, handleProductDrop, handleProductDragOver, handleProductDragLeave, draggedProductId, dropTargetProductId } = data;
+        const { products, displayedSpecs, selectedProductIds, handleToggleProductSelection, handleOpenProductModal, isProductReordering, handleProductDragStart, handleProductDragEnd, handleProductDrop, handleProductDragOver, handleProductDragLeave, draggedProductId, dropTargetProductId, bestWorstMap } = data;
         const product = products[index];
         const isSelected = selectedProductIds.has(product.id);
         const productName = `${product.brand} ${product.model}`;
@@ -206,11 +144,14 @@ const ProductAsRowView = memo((props: any) => {
                         </div>
                     </div>
 
-                    {displayedSpecs.map(spec => (
-                        <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600">
-                           <span className="truncate"> {product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                    {displayedSpecs.map(spec => {
+                        const rank = rankCell(spec.id, product.specs[spec.id], bestWorstMap || {});
+                        return (
+                        <div key={spec.id} className={`flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600 ${rankCellClass(rank)}`}>
+                           <span className="truncate">{rank === 'best' && <span className="mr-1">🏆</span>}{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -264,7 +205,7 @@ const ProductAsRowView = memo((props: any) => {
                         products: sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection,
                         handleOpenProductModal, isProductReordering, handleProductDragStart, handleProductDragEnd,
                         handleProductDrop, handleProductDragOver, handleProductDragLeave, draggedProductId,
-                        dropTargetProductId
+                        dropTargetProductId, bestWorstMap
                     }}
                 >
                     {ProductRow}
@@ -282,9 +223,9 @@ const ProductAsColumnView = memo((props: any) => {
         draggedProductId, dropTargetProductId, requestSort, sortConfig,
         isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
         handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
-        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+        isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec, bestWorstMap
     } = props;
-    
+
     return (
         <div className="overflow-x-auto bg-white rounded-xl shadow-lg ring-1 ring-slate-900/5">
             <div className="flex min-w-max">
@@ -367,11 +308,14 @@ const ProductAsColumnView = memo((props: any) => {
                                     Edit
                                 </button>
                             </div>
-                            {displayedSpecs.map(spec => (
-                                <div key={spec.id} className="h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600">
-                                    <span className="truncate">{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                            {displayedSpecs.map(spec => {
+                                const rank = rankCell(spec.id, product.specs[spec.id], bestWorstMap || {});
+                                return (
+                                <div key={spec.id} className={`h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600 ${rankCellClass(rank)}`}>
+                                    <span className="truncate">{rank === 'best' && <span className="mr-1">🏆</span>}{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     );
                 })}
@@ -385,7 +329,8 @@ const App: React.FC = () => {
   const [specs, setSpecs] = useState<Spec[]>(() => {
     try {
       const savedSpecs = localStorage.getItem('comparison-tool-specs');
-      return savedSpecs ? JSON.parse(savedSpecs) : initialSpecs;
+      // withInferredMeta backfills comparison metadata onto legacy/imported specs.
+      return withInferredMeta(savedSpecs ? JSON.parse(savedSpecs) : initialSpecs);
     } catch (error) {
       console.error('Could not load specs from local storage', error);
       return initialSpecs;
@@ -466,6 +411,22 @@ const App: React.FC = () => {
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialSettings.viewMode);
 
+  // Category filter (AV/display domain)
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialSettings.selectedCategory || ALL_CATEGORIES);
+  const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
+
+  // "차이만 보기" — hide specs where every visible product shares the same value
+  const [differenceOnly, setDifferenceOnly] = useState<boolean>(!!initialSettings.differenceOnly);
+
+  // Decision matrix weights + panels
+  const [weights, setWeights] = useState<Record<string, number>>(() => {
+    const defaults = defaultWeightsFor(specs);
+    return initialSettings.weights ? { ...defaults, ...initialSettings.weights } : defaults;
+  });
+  const [isDecisionPanelOpen, setIsDecisionPanelOpen] = useState(false);
+  const [isRadarModalOpen, setIsRadarModalOpen] = useState(false);
+
 
   useEffect(() => {
     try {
@@ -494,6 +455,9 @@ const App: React.FC = () => {
         if (modelFilterRef.current && !modelFilterRef.current.contains(event.target as Node)) {
             setIsModelFilterOpen(false);
         }
+        if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target as Node)) {
+            setIsCategoryFilterOpen(false);
+        }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -504,6 +468,12 @@ const App: React.FC = () => {
   useEffect(() => {
     setSelectedModels([]);
   }, [selectedBrand]);
+
+  useEffect(() => {
+    // Changing category invalidates any brand/model selection.
+    setSelectedBrand('All Brands');
+    setModelQuery('');
+  }, [selectedCategory]);
 
   const handleOpenSpecModal = (spec: Spec | null = null) => {
     setEditingSpec(spec);
@@ -529,9 +499,12 @@ const App: React.FC = () => {
     if (specData.id) {
       setSpecs(prev => prev.map(s => s.id === specData.id ? { ...s, name: specData.name } : s));
     } else {
-      const newSpec = { id: uuidv4(), name: specData.name };
+      const newSpec = withInferredMeta([{ id: uuidv4(), name: specData.name }])[0];
       setSpecs(prev => [...prev, newSpec]);
       setProducts(prev => prev.map(p => ({ ...p, specs: { ...p.specs, [newSpec.id]: '' } })));
+      if (isScorableSpec(newSpec)) {
+        setWeights(prev => ({ ...prev, [newSpec.id]: newSpec.weight ?? 0 }));
+      }
     }
     handleCloseModals();
   };
@@ -658,10 +631,10 @@ const App: React.FC = () => {
               });
           });
 
-          const newSpecs = Array.from(specNameSet).map(name => ({
+          const newSpecs = withInferredMeta(Array.from(specNameSet).map(name => ({
               id: uuidv4(),
               name,
-          }));
+          })));
 
           const specNameToIdMap = new Map(newSpecs.map(s => [s.name, s.id]));
 
@@ -684,10 +657,12 @@ const App: React.FC = () => {
 
           setSpecs(newSpecs);
           setProducts(newProducts);
+          setWeights(defaultWeightsFor(newSpecs));
           setSelectedProductIds(new Set());
           setSelectedSpecIds([]);
           setModelQuery('');
           setSelectedBrand('All Brands');
+          setSelectedCategory(ALL_CATEGORIES);
           handleCloseModals();
           alert('Data imported successfully!');
 
@@ -701,13 +676,16 @@ const App: React.FC = () => {
     try {
         const settingsToSave = {
             selectedBrand,
+            selectedCategory,
             modelQuery,
             selectedSpecIds,
             sortConfig,
             viewMode,
+            differenceOnly,
+            weights,
         };
         localStorage.setItem('comparison-tool-settings', JSON.stringify(settingsToSave));
-        
+
         setShowSaveConfirmation(true);
         setTimeout(() => {
             setShowSaveConfirmation(false);
@@ -716,7 +694,31 @@ const App: React.FC = () => {
         console.error('Could not save settings to local storage', error);
         alert('Failed to save settings.');
     }
-  }, [selectedBrand, modelQuery, selectedSpecIds, sortConfig, viewMode]);
+  }, [selectedBrand, selectedCategory, modelQuery, selectedSpecIds, sortConfig, viewMode, differenceOnly, weights]);
+
+  const handleResetWeights = useCallback(() => {
+    setWeights(defaultWeightsFor(specs));
+  }, [specs]);
+
+  const handleLoadSampleData = useCallback(() => {
+    setConfirmation({
+        isOpen: true,
+        message: 'AV/디스플레이 샘플 데이터(30종)를 불러옵니다. 현재 데이터는 대체됩니다. 계속할까요?',
+        onConfirm: () => {
+            const seedSpecs = withInferredMeta(SEED_SPECS);
+            setSpecs(seedSpecs);
+            setProducts(SEED_PRODUCTS);
+            setWeights(defaultWeightsFor(seedSpecs));
+            setSelectedProductIds(new Set());
+            setSelectedSpecIds([]);
+            setSelectedModels([]);
+            setModelQuery('');
+            setSelectedBrand('All Brands');
+            setSelectedCategory(ALL_CATEGORIES);
+            handleCloseConfirmation();
+        },
+    });
+  }, []);
 
   const requestSort = useCallback((key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -738,23 +740,34 @@ const App: React.FC = () => {
     return specs;
   }, [specs, selectedSpecIds]);
 
-  const uniqueBrands = useMemo(() => {
-    const brands = new Set(products.map(p => p.brand));
-    return ['All Brands', ...Array.from(brands).sort()];
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category).filter(Boolean) as string[]);
+    return [ALL_CATEGORIES, ...Array.from(cats).sort()];
   }, [products]);
+
+  // Products narrowed by the selected category (the basis for brand/model filters).
+  const categoryProducts = useMemo(() => {
+    if (selectedCategory === ALL_CATEGORIES) return products;
+    return products.filter(p => p.category === selectedCategory);
+  }, [products, selectedCategory]);
+
+  const uniqueBrands = useMemo(() => {
+    const brands = new Set(categoryProducts.map(p => p.brand));
+    return ['All Brands', ...Array.from(brands).sort()];
+  }, [categoryProducts]);
   
   const modelsForSelectedBrand = useMemo(() => {
     if (selectedBrand === 'All Brands') {
         return [];
     }
-    const brandModels = products
+    const brandModels = categoryProducts
         .filter(p => p.brand === selectedBrand)
         .map(p => p.model);
     return [...new Set(brandModels)].sort();
-  }, [products, selectedBrand]);
+  }, [categoryProducts, selectedBrand]);
 
   const filteredProducts = useMemo(() => {
-    let tempProducts = [...products];
+    let tempProducts = [...categoryProducts];
 
     if (selectedBrand !== 'All Brands') {
         tempProducts = tempProducts.filter(p => p.brand === selectedBrand);
@@ -768,7 +781,7 @@ const App: React.FC = () => {
         }
     }
     return tempProducts;
-  }, [products, selectedBrand, modelQuery, selectedModels]);
+  }, [categoryProducts, selectedBrand, modelQuery, selectedModels]);
 
   const sortedProducts = useMemo(() => {
     let sortableProducts = [...filteredProducts];
@@ -809,6 +822,40 @@ const App: React.FC = () => {
     const selectedIds = selectedProductIds;
     return products.filter(p => selectedIds.has(p.id));
   }, [products, selectedProductIds]);
+
+  // Spec used for the price-performance (가성비) score.
+  const priceSpecId = useMemo(() => {
+    const street = specs.find(s => s.kind === 'currency' && s.betterDirection === 'lower' && /street\s*price|가격/i.test(s.name));
+    if (street) return street.id;
+    return specs.find(s => s.kind === 'currency')?.id;
+  }, [specs]);
+
+  // Score the selected products when 2+ are chosen, otherwise everything visible.
+  const productsToScore = useMemo(
+    () => (selectedProducts.length >= 2 ? selectedProducts : sortedProducts),
+    [selectedProducts, sortedProducts],
+  );
+
+  // "차이만 보기": drop specs whose value is identical across all visible products.
+  const finalDisplayedSpecs = useMemo(() => {
+    if (!differenceOnly) return displayedSpecs;
+    return displayedSpecs.filter(spec => {
+      const values = sortedProducts.map(p => (p.specs[spec.id] ?? '').trim());
+      const nonEmpty = values.filter(v => v !== '');
+      if (nonEmpty.length <= 1) return true; // not enough data to call it "same"
+      return new Set(values).size > 1;
+    });
+  }, [differenceOnly, displayedSpecs, sortedProducts]);
+
+  // Best/worst value per scorable spec, for winner-highlight in each context.
+  const bestWorstMap = useMemo(
+    () => computeBestWorstMap(sortedProducts, finalDisplayedSpecs),
+    [sortedProducts, finalDisplayedSpecs],
+  );
+  const comparisonBestWorst = useMemo(
+    () => computeBestWorstMap(selectedProducts, finalDisplayedSpecs),
+    [selectedProducts, finalDisplayedSpecs],
+  );
 
   // Spec Drag & Drop Handlers
   const handleSpecDragStart = (e: React.DragEvent<HTMLDivElement>, spec: Spec) => {
@@ -896,21 +943,53 @@ const App: React.FC = () => {
   };
 
   const viewProps = {
-    sortedProducts, displayedSpecs, selectedProductIds, handleToggleProductSelection,
+    sortedProducts, displayedSpecs: finalDisplayedSpecs, selectedProductIds, handleToggleProductSelection,
     handleOpenProductModal, isProductReordering, handleProductDragStart,
     handleProductDragEnd, handleProductDragOver, handleProductDragLeave, handleProductDrop,
     draggedProductId, dropTargetProductId, requestSort, sortConfig,
     isSpecReordering, handleSpecDragStart, handleSpecDragEnd, handleSpecDragOver,
     handleSpecDragLeave, handleSpecDrop, draggedSpecId, dropTargetId,
-    isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec
+    isSpecChartable, products, handleOpenChartModal, handleOpenSpecModal, handleDeleteSpec,
+    bestWorstMap
   };
   
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-12">
-      <header className="mb-10">
-        <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight">Product Comparison</h1>
-        <p className="text-xl text-slate-500 mt-3">An elegant way to compare product specifications.</p>
+      <header className="mb-10 no-print">
+        <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-indigo-600 text-white font-extrabold text-2xl shadow-sm">A</div>
+            <div>
+                <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">AV Compare <span className="text-indigo-600">Pro</span></h1>
+                <p className="text-base text-slate-500">경쟁 제품을 빠르게 비교하고 의사결정을 내리는 도구</p>
+            </div>
+        </div>
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+            <div ref={categoryFilterRef} className="relative">
+                <button
+                    onClick={() => setIsCategoryFilterOpen(prev => !prev)}
+                    className="w-full px-4 py-2 text-slate-700 bg-white/50 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition flex justify-between items-center text-left"
+                    aria-haspopup="true"
+                    aria-expanded={isCategoryFilterOpen}
+                >
+                    <span className="truncate">{selectedCategory === ALL_CATEGORIES ? '전체 카테고리' : selectedCategory}</span>
+                    <ChevronDownIcon className={`h-5 w-5 text-slate-400 transition-transform ${isCategoryFilterOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isCategoryFilterOpen && (
+                    <div className="absolute z-20 mt-2 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                        <div className="max-h-60 overflow-y-auto p-1">
+                            {uniqueCategories.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => { setSelectedCategory(cat); setIsCategoryFilterOpen(false); }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-md"
+                                >
+                                    {cat === ALL_CATEGORIES ? '전체 카테고리' : cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
             <div ref={brandFilterRef} className="relative">
                 <button
                     onClick={() => setIsBrandFilterOpen(prev => !prev)}
@@ -1034,18 +1113,38 @@ const App: React.FC = () => {
                     </div>
                 )}
             </div>
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4">
-                 <button
-                    onClick={() => setIsComparisonModalOpen(true)}
-                    disabled={selectedProductIds.size < 2}
-                    className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Compare selected products"
-                >
-                    Compare ({selectedProductIds.size})
-                </button>
-            </div>
         </div>
          <div className="mt-6 flex flex-wrap gap-3 items-center border-t border-slate-200 pt-6">
+              <button
+                  onClick={() => setIsDecisionPanelOpen(true)}
+                  className="flex items-center gap-2 text-sm bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors justify-center shadow-sm"
+                  title="가중치 기반 자동 순위"
+              >
+                  🏆 의사결정 매트릭스
+              </button>
+              <button
+                  onClick={() => setIsComparisonModalOpen(true)}
+                  disabled={selectedProductIds.size < 2}
+                  className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Compare selected products"
+              >
+                  선택 비교 ({selectedProductIds.size})
+              </button>
+              <button
+                  onClick={() => setIsRadarModalOpen(true)}
+                  className="flex items-center gap-2 text-sm bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg hover:bg-slate-200 transition-colors justify-center"
+                  title="다축 레이더 비교"
+              >
+                  <ChartBarIcon className="h-5 w-5" /> 레이더 비교
+              </button>
+              <button
+                  onClick={() => setDifferenceOnly(prev => !prev)}
+                  className={`flex items-center gap-2 text-sm font-semibold py-2 px-4 rounded-lg transition-colors justify-center ${differenceOnly ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  title="모든 제품이 동일한 스펙 행을 숨깁니다"
+              >
+                  {differenceOnly ? '✓ ' : ''}차이만 보기
+              </button>
+              <div className="h-6 w-px bg-slate-200" />
               <button onClick={() => handleOpenProductModal()} className="flex items-center gap-2 text-sm bg-indigo-50 text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-100 transition-colors justify-center">
                   <PlusIcon className="h-5 w-5" />
                   Add Product
@@ -1081,6 +1180,14 @@ const App: React.FC = () => {
                   Transpose View
               </button>
                <div className="flex-grow"></div>
+                <button
+                    onClick={handleLoadSampleData}
+                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
+                    aria-label="Load sample data"
+                    title="AV/디스플레이 샘플 데이터 30종 불러오기"
+                >
+                    샘플 데이터
+                </button>
                  <button
                     onClick={() => setIsImportModalOpen(true)}
                     className="px-4 py-2 text-sm font-medium text-slate-700 bg-white/60 border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
@@ -1143,6 +1250,28 @@ const App: React.FC = () => {
         />
       )}
 
+      {isDecisionPanelOpen && (
+        <DecisionPanel
+          isOpen={isDecisionPanelOpen}
+          onClose={() => setIsDecisionPanelOpen(false)}
+          products={productsToScore}
+          specs={specs}
+          weights={weights}
+          onWeightsChange={setWeights}
+          onResetWeights={handleResetWeights}
+          priceSpecId={priceSpecId}
+        />
+      )}
+
+      {isRadarModalOpen && (
+        <RadarChartModal
+          isOpen={isRadarModalOpen}
+          onClose={() => setIsRadarModalOpen(false)}
+          products={productsToScore}
+          specs={specs}
+        />
+      )}
+
       <ConfirmationModal
         isOpen={confirmation.isOpen}
         onClose={handleCloseConfirmation}
@@ -1160,23 +1289,33 @@ const App: React.FC = () => {
                 className="bg-white rounded-lg shadow-xl w-full max-w-7xl h-[90vh] flex flex-col transform transition-all" 
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0">
-                    <h3 className="text-xl font-semibold text-slate-800">Comparing {selectedProducts.length} Products</h3>
-                    <button
-                        onClick={() => setIsComparisonModalOpen(false)}
-                        className="text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-1"
-                        aria-label="Close comparison"
-                    >
-                        <XMarkIcon className="h-6 w-6" />
-                    </button>
+                <div className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0 no-print">
+                    <h3 className="text-xl font-semibold text-slate-800">{selectedProducts.length}개 제품 비교</h3>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => window.print()}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                            title="비교 결과를 인쇄하거나 PDF로 저장"
+                        >
+                            🖨️ 인쇄 / PDF
+                        </button>
+                        <button
+                            onClick={() => setIsComparisonModalOpen(false)}
+                            className="text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-full p-1"
+                            aria-label="Close comparison"
+                        >
+                            <XMarkIcon className="h-6 w-6" />
+                        </button>
+                    </div>
                 </div>
-                <div className="overflow-auto flex-grow">
+                <div id="print-area" className="overflow-auto flex-grow">
+                    <h2 className="hidden print:block text-2xl font-bold text-slate-900 p-4">AV Compare Pro — 제품 비교</h2>
                      {viewMode === 'product-as-row' ? (
                          <div className="min-w-max">
                             {/* Header */}
                             <div className="flex sticky top-0 bg-slate-100/75 backdrop-blur-sm z-10 border-b-2 border-slate-300">
                                  <div className="flex-shrink-0 w-64 p-3 flex items-center border-r border-slate-200 font-bold text-slate-800 text-sm">Product</div>
-                                  {displayedSpecs.map(spec => (
+                                  {finalDisplayedSpecs.map(spec => (
                                     <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center justify-between border-r border-slate-200 group font-bold text-slate-800 text-sm">
                                         <span className="truncate">{spec.name}</span>
                                          {isSpecChartable(spec.id, selectedProducts) && (
@@ -1202,11 +1341,14 @@ const App: React.FC = () => {
                                                 <p className="font-bold text-slate-800 truncate" title={productName}>{productName}</p>
                                             </div>
                                         </div>
-                                        {displayedSpecs.map(spec => (
-                                            <div key={spec.id} className="flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600">
-                                                <span className="truncate"> {product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                                        {finalDisplayedSpecs.map(spec => {
+                                            const rank = rankCell(spec.id, product.specs[spec.id], comparisonBestWorst);
+                                            return (
+                                            <div key={spec.id} className={`flex-shrink-0 w-48 p-3 flex items-center border-r border-slate-200 text-sm text-slate-600 ${rankCellClass(rank)}`}>
+                                                <span className="truncate">{rank === 'best' && <span className="mr-1">🏆</span>}{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 );
                             })}
@@ -1218,7 +1360,7 @@ const App: React.FC = () => {
                                 <div className="h-48 p-3 flex items-end border-b border-slate-200">
                                     <span className="font-bold text-slate-800 text-sm">Product</span>
                                 </div>
-                                {displayedSpecs.map(spec => (
+                                {finalDisplayedSpecs.map(spec => (
                                     <div key={spec.id} className="h-12 w-64 p-3 flex items-center justify-between border-b border-slate-200 group">
                                         <span className="font-bold text-slate-800 text-sm truncate">{spec.name}</span>
                                         {isSpecChartable(spec.id, selectedProducts) && (
@@ -1238,11 +1380,14 @@ const App: React.FC = () => {
                                             <p className="font-bold text-slate-800 truncate text-center" title={productName}>{productName}</p>
                                             <img src={product.imageUrl} alt={productName} className="w-full h-24 object-cover rounded-md bg-slate-100" />
                                         </div>
-                                        {displayedSpecs.map(spec => (
-                                            <div key={spec.id} className="h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600">
-                                                <span className="truncate">{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
+                                        {finalDisplayedSpecs.map(spec => {
+                                            const rank = rankCell(spec.id, product.specs[spec.id], comparisonBestWorst);
+                                            return (
+                                            <div key={spec.id} className={`h-12 p-3 flex items-center border-b border-slate-200 text-sm text-slate-600 ${rankCellClass(rank)}`}>
+                                                <span className="truncate">{rank === 'best' && <span className="mr-1">🏆</span>}{product.specs[spec.id] || <span className="text-slate-400">-</span>}</span>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 );
                             })}

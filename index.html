@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Product Comparison Tool</title>
+    <title>AV Compare Pro — 제품 비교 의사결정 도구</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
       {
@@ -22,6 +22,22 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+      }
+      /* Print: show only the comparison table (#print-area), drop the dark modal backdrop. */
+      @media print {
+        body { background: #fff !important; }
+        .no-print { display: none !important; }
+        body * { visibility: hidden; }
+        #print-area, #print-area * { visibility: visible; }
+        #print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          overflow: visible !important;
+          max-height: none !important;
+        }
+        .fixed { position: static !important; background: #fff !important; }
       }
     </style>
   </head>
