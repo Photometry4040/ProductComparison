@@ -1,5 +1,5 @@
 {
-  "name": "Product Comparison Tool",
-  "description": "An interactive tool to compare product specifications side-by-side. Users can dynamically add, edit, and manage products and their technical specifications in a clean, tabular layout for easy comparison.",
+  "name": "AV Compare Pro",
+  "description": "A product comparison and decision tool for the AV/display domain. Beyond side-by-side specs, it adds per-spec winner highlighting, a weighted decision matrix with auto-ranking, and radar comparison so teams can decide fast.",
   "requestFramePermissions": []
 }

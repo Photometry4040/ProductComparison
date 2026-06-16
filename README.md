@@ -1,246 +1,180 @@
-# 💻 제품 사양 비교 도구 (Product Comparison Tool)
+# 🏆 AV Compare Pro — 제품 비교·의사결정 도구
 
-이 프로젝트는 다양한 제품의 기술 사양을 나란히 놓고 쉽게 비교할 수 있도록 설계된 대화형 웹 애플리케이션입니다. 사용자는 깔끔한 표 형식의 레이아웃에서 제품과 사양을 동적으로 추가, 편집, 삭제 및 관리할 수 있습니다.
+경쟁 제품을 나란히 놓고 **빠르게 비교하고 의사결정을 내리는** 회사용 웹 애플리케이션입니다.
+단순 사양 나열을 넘어, **스펙별 승자 강조 · 가중치 의사결정 매트릭스 · 레이더 비교**로
+"우리 기준에서 무엇이 1등인가"에 즉시 답합니다. 현재 AV/디스플레이 영역(프로젝터·모니터·
+인터랙티브 디스플레이·LED 비디오월)의 실제 제품 데이터를 기반으로 동작합니다.
 
-
-<img width="1035" height="780" alt="image" src="https://github.com/user-attachments/assets/7df9c6ea-6c9a-4391-b4b8-17db6309557c" />
+> 배포: GitHub `main` 푸시 → Netlify 자동 배포. 저장은 **클라이언트 전용(localStorage)** 으로
+> 로그인/백엔드 없이 동작합니다.
 
 <details>
 <summary>✨ 주요 기능</summary>
 
-- **동적 제품 관리**: 제품을 실시간으로 추가, 편집, 삭제할 수 있습니다.
-- **맞춤형 사양 관리**: 비교하고자 하는 사양(예: 가격, 해상도)을 자유롭게 추가하거나 제거할 수 있습니다.
-- **정렬 및 필터링**: 브랜드, 모델명, 특정 사양 값을 기준으로 제품 목록을 정렬하고 필터링할 수 있습니다. 특정 브랜드를 선택하면 해당 브랜드의 모델만 골라 여러 개를 동시에 필터링하는 동적 기능을 제공합니다.
-- **선택적 비교**: 비교하고 싶은 제품만 선택하여 별도의 비교 창에서 집중적으로 확인할 수 있습니다.
-- **뷰 전환 (Transpose View)**: '제품-행' 뷰와 '제품-열' 뷰를 전환하며 데이터의 양과 목적에 맞는 최적의 레이아웃으로 데이터를 탐색할 수 있습니다.
-- **데이터 가져오기/내보내기**: CSV 또는 JSON 형식의 파일을 통해 대량의 제품 데이터를 한 번에 가져오거나, 현재 데이터를 템플릿 파일로 내보낼 수 있습니다.
-- **반응형 디자인**: 데스크톱, 태블릿, 모바일 등 다양한 화면 크기에서 최적의 사용 경험을 제공합니다.
-- **고성능 렌더링**: 수천 개의 데이터도 부드럽게 처리할 수 있도록 가상화(Virtualization) 기술을 적용했습니다.
+**의사결정 (핵심 차별화)**
+- **스펙별 승자 하이라이트**: 비교 대상 중 각 숫자 스펙의 1등 셀을 🏆 초록, 최저값을 회색으로 즉시 표시.
+- **가중치 의사결정 매트릭스**: 기준별 가중치 슬라이더 → 0~100 정규화(가격·응답속도 등은 낮을수록 우위) →
+  가중 평균으로 **자동 순위 + 추천·가성비 뱃지**. 값이 바뀌면 실시간 갱신.
+- **레이더 차트**: 선택 제품을 핵심 스펙 정규화 점수로 겹쳐 그려 다축 비교.
+- **차이만 보기**: 모든 제품이 동일한 스펙 행을 숨겨 정보 과부하 제거.
+
+**데이터 & 비교**
+- **타입이 있는 스펙 모델**: 각 스펙이 종류(number/currency/text/enum)·단위·좋은 방향·기본 가중치·카테고리를 가짐.
+- **카테고리 / 브랜드 / 모델 / 사양 필터**, 스마트 정렬(숫자·통화 인식).
+- **동적 제품·사양 관리**(추가/편집/삭제), 드래그 앤 드롭 순서 변경.
+- **선택 비교 모달** + **인쇄/PDF 내보내기**(전용 print CSS).
+- **CSV/JSON 가져오기·내보내기**(따옴표·콤마·개행을 올바르게 처리하는 RFC 4180 파서).
+- **샘플 데이터 불러오기**: AV/디스플레이 36종 시드 데이터로 초기화.
+
+**성능 & UX**
+- **가상화**(`react-window`)로 대량 목록 처리, **반응형**(데스크톱=표, 모바일=카드 뷰).
+- **코드 스플릿**: 차트(recharts)는 열 때만 로드해 초기 번들 경량화.
+- 설정(필터·정렬·뷰·가중치)을 `localStorage`에 저장해 재방문 시 유지.
 </details>
 
 ---
 
 ## 📝 개선사항 리스트 (Changelog)
 
+### 2026-06-16 — 의사결정 도구로 업그레이드 + 실제 데이터
+- **의사결정 엔진 도입**: 타입이 있는 스펙 모델(`kind/unit/betterDirection/weight/category`),
+  스펙별 승자 하이라이트, 가중치 매트릭스(`DecisionPanel`), 레이더 차트(`RadarChartModal`),
+  "차이만 보기" 토글, 카테고리 필터.
+- **AV/디스플레이 데이터셋(36종)**: 5개 카테고리. 프로젝터 17종은 projectorcentral.com 기반
+  **검증 스펙 + 실제 제품 사진**으로 구성(`public/products/*.jpg`, 재호스팅).
+- **브랜딩·산출물**: "AV Compare Pro" 헤더, 비교 결과 **인쇄/PDF 내보내기**, 샘플 데이터 불러오기.
+- **안정화(Phase 4)**: RFC 4180 CSV 파서, recharts **코드 스플릿**(초기 번들 696kB→286kB),
+  **모바일 카드 뷰**, `@types/react-window`.
+- **이미지 파이프라인**: `scripts/generate-product-images.mjs`로 카테고리별 SVG 플레이스홀더 생성,
+  실제 사진은 동일 슬러그(`brand-model`)로 `public/products/`에 두면 자동 사용.
+- 데이터 수집 가이드: `docs/data-collection-prompts.md`(크롬 Claude 확장용 카테고리별 프롬프트).
+
 ### 2024-07-29
-- **동적 모델 필터 기능 추가**:
-    - 브랜드 필터와 모델 필터를 연동하여, 특정 브랜드를 선택하면 해당 브랜드의 모델들만 보여주는 **멀티-선택 드롭다운**이 활성화되도록 개선했습니다.
-    - 이를 통해 사용자는 여러 모델을 동시에 선택하여 더 빠르고 정밀하게 제품을 필터링할 수 있습니다.
-    - 'All Brands'가 선택된 경우에는 기존의 텍스트 기반 검색 필터가 유지되어 유연성을 확보했습니다.
+- **동적 모델 필터 기능 추가**: 브랜드 선택 시 해당 브랜드 모델만 보여주는 멀티-선택 드롭다운,
+  'All Brands'에서는 텍스트 검색 유지.
 
 ### 2024-07-28
-- **뷰 전환 기능 추가 및 UI/UX 개선**:
-    - **축 전환(Transpose View)**: 사용자가 필요에 따라 '제품-행 뷰'(세로 스크롤)와 '제품-열 뷰'(가로 스크롤)를 자유롭게 전환할 수 있는 기능을 추가하여, 데이터 탐색 및 비교의 유연성을 극대화했습니다.
-    - **일관된 사용자 경험**: 메인 화면에서 선택된 뷰 모드가 '선택 제품 비교' 모달 창에도 동기화되어, 어떤 상황에서든 일관되고 예측 가능한 인터페이스를 제공합니다.
-    - **설정 유지**: 사용자가 선택한 뷰 모드는 브라우저의 `localStorage`에 저장되어, 재방문 시에도 마지막 설정을 유지합니다.
-    - **코드 리팩터링**: 각 뷰의 렌더링 로직을 `ProductAsRowView`와 `ProductAsColumnView`라는 별도의 컴포넌트로 분리하여 코드의 가독성과 유지보수성을 향상시켰습니다.
+- **뷰 전환(Transpose View)** 추가, 비교 모달과 동기화, 뷰 모드 `localStorage` 저장,
+  렌더링 로직을 `ProductAsRowView`/`ProductAsColumnView`로 분리.
 
 ### 2024-07-27
-- **데이터 구조 개선**:
-    - 기존의 단일 '제품명(name)' 필드를 '브랜드(brand)'와 '모델명(model)'으로 분리하여 데이터 관리의 정밀성과 확장성을 향상시켰습니다.
-    - 이 변경에 따라 제품 추가/수정 UI, 필터링 및 정렬 로직, 데이터 가져오기/내보내기 기능 등 앱의 모든 관련 기능이 새로운 데이터 구조를 지원하도록 전면 업데이트되었습니다.
+- **데이터 구조 개선**: 단일 '제품명' → '브랜드 + 모델' 분리, 관련 기능 전면 업데이트.
 
 ### 2024-07-26
-- **대용량 데이터 성능 최적화**:
-    - `react-window` 라이브러리를 사용한 **가상화(Virtualization)**를 도입하여, 수천 개의 제품 데이터도 버벅임 없이 부드럽게 스크롤되도록 성능을 극적으로 개선했습니다.
-    - 마우스 오버(hover) 효과를 React `state` 업데이트 방식에서 순수 CSS `group-hover`로 변경하여 불필요한 리렌더링을 제거하고 반응성을 극대화했습니다.
-- **안정적인 삭제 기능 구현**:
-    - 특정 브라우저 환경(예: iframe)에서 차단될 수 있는 불안정한 `window.confirm` 대화상자를 완전히 제거했습니다.
-    - 앱의 디자인과 일관성을 갖춘 **커스텀 확인 모달(`ConfirmationModal`)**을 도입하여, 어떤 환경에서든 안정적으로 삭제 확인 기능이 동작하도록 보장합니다.
-- **사용자 경험(UX) 개선**:
-    - **직관적인 삭제 워크플로우**: 제품 삭제 버튼을 '제품 수정' 모달 내부로 이동시켜, 사용자가 실수로 제품을 삭제하는 것을 방지하고 더 안전한 워크플로우를 제공합니다.
-    - **순서 변경 기능**: 드래그 앤 드롭으로 제품 및 사양의 순서를 쉽게 변경할 수 있는 기능을 추가했습니다.
-    - **데이터 시각화**: 숫자 기반 사양 데이터를 시각적으로 비교할 수 있는 차트 기능을 추가했습니다.
-    - **설정 저장**: 사용자의 필터 및 정렬 설정을 브라우저의 `localStorage`에 저장하여, 재방문 시에도 이전 설정을 유지할 수 있도록 개선했습니다.
+- **성능 최적화**: `react-window` 가상화, hover를 CSS `group-hover`로 전환.
+- **안정적 삭제**: `window.confirm` 제거, 커스텀 `ConfirmationModal` 도입.
+- **UX**: 삭제 버튼을 수정 모달로 이동, 드래그 앤 드롭 순서 변경, 차트, 설정 저장.
 
 ---
 
 <details>
 <summary>🛠️ 기술 스택 (Tech Stack)</summary>
 
-이 프로젝트는 현대적인 웹 개발 도구를 사용하여 구축되었습니다.
-
-- **[React](https://react.dev/)**: 사용자 인터페이스(UI)를 구축하기 위한 선언적이고 효율적인 JavaScript 라이브러리입니다. 컴포넌트 기반 아키텍처를 통해 재사용 가능하고 관리하기 쉬운 코드를 작성할 수 있습니다.
-- **[TypeScript](https://www.typescriptlang.org/)**: JavaScript에 정적 타입을 추가한 슈퍼셋 언어입니다. 코드의 안정성을 높이고, 개발 과정에서 발생할 수 있는 잠재적 오류를 미리 방지하며, 코드 자동 완성과 같은 개발자 경험을 향상시킵니다.
-- **[Tailwind CSS](https://tailwindcss.com/)**: 유틸리티 우선(utility-first) CSS 프레임워크입니다. HTML 내에서 직접 스타일을 조합하여 빠르고 일관된 디자인을 구축할 수 있게 해줍니다.
-- **[react-window](https://react-window.vercel.app/)**: 대규모 목록의 렌더링 성능을 최적화하기 위한 가상화 라이브러리입니다.
-- **의존성 없는(Dependency-Free) 모듈 로딩**: `index.html` 내의 `importmap`을 사용하여 별도의 번들링 도구(Webpack, Vite 등) 설정 없이 브라우저에서 직접 React 모듈을 로드합니다. 이는 가볍고 빠른 개발 환경을 제공합니다.
+- **[React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)** — 컴포넌트 기반 UI, 정적 타입.
+- **[Vite 6](https://vite.dev/)** — 개발 서버 및 프로덕션 번들러. `npm run build` → `dist/`.
+- **[Tailwind CSS](https://tailwindcss.com/)** — 유틸리티 우선 스타일(현재 `index.html`의 CDN 사용).
+- **[Recharts](https://recharts.org/)** — 막대/레이더 차트(코드 스플릿으로 지연 로드).
+- **[react-window](https://react-window.vercel.app/)** — 대규모 목록 가상화.
+- **상태 관리** — React 훅(`useState`/`useMemo`/`useCallback`), 외부 상태 라이브러리 없음.
+- **영속성** — 브라우저 `localStorage`(specs/products/settings). 백엔드 없음.
 </details>
 
 <details>
 <summary>🚀 로컬 환경에서 실행하기</summary>
 
-다른 PC에서 이 프로젝트를 다운로드하여 실행하려면 아래 단계를 따르세요.
+[Node.js](https://nodejs.org/)(20 이상 권장)가 필요합니다.
 
-### 사전 준비 사항
+```bash
+# 1) 의존성 설치
+npm install
 
-- [Node.js](https://nodejs.org/)가 설치되어 있어야 합니다. (npm이 함께 설치됩니다)
-- 코드를 실행할 로컬 웹 서버가 필요합니다. 여기서는 `serve` 패키지를 사용하는 방법을 안내합니다.
+# 2) 개발 서버 (기본 http://localhost:3000)
+npm run dev
 
-### 단계별 실행 방법
+# 3) 프로덕션 빌드 → dist/
+npm run build
 
-1.  **프로젝트 파일 다운로드**:
-    이 프로젝트의 모든 파일을 컴퓨터의 특정 폴더(예: `product-comparison-app`)에 다운로드합니다.
+# 4) 빌드 결과 미리보기
+npm run preview
 
-2.  **터미널 열기**:
-    다운로드한 프로젝트 폴더에서 터미널(명령 프롬프트, PowerShell, Git Bash 등)을 엽니다.
+# 5) (선택) 제품 이미지 플레이스홀더 재생성
+npm run gen:images
+```
 
-3.  **로컬 웹 서버 설치 (최초 1회)**:
-    아직 `serve` 패키지를 설치하지 않았다면, 아래 명령어를 실행하여 전역으로 설치합니다.
-    ```bash
-    npm install -g serve
-    ```
+> 환경변수: `vite.config.ts`가 `GEMINI_API_KEY`를 참조하지만, 현재 기능 동작에 필수는 아닙니다.
+</details>
 
-4.  **프로젝트 실행**:
-    터미널에서 아래 명령어를 실행하여 로컬 웹 서버를 시작합니다.
-    ```bash
-    serve -s .
-    ```
-    - `serve`: 웹 서버를 실행하는 명령어입니다.
-    - `-s`: Single-Page Application(SPA) 모드로 실행하는 옵션입니다. 어떤 경로로 접속하든 `index.html`을 먼저 보여줍니다.
-    - `.`: 현재 폴더를 서버의 루트 디렉토리로 사용하겠다는 의미입니다.
+<details>
+<summary>🐳 Docker로 실행하기</summary>
 
-5.  **브라우저에서 확인**:
-    서버가 성공적으로 실행되면 터미널에 접속할 수 있는 주소(보통 `http://localhost:3000`)가 표시됩니다. 이 주소를 웹 브라우저에 입력하여 애플리케이션을 확인합니다.
+[Docker Desktop](https://www.docker.com/products/docker-desktop/)이 설치되어 있어야 합니다.
 
----
-
-### 🐳 Docker로 실행하기 (Tip)
-
-Node.js나 `serve` 패키지를 로컬 컴퓨터에 직접 설치하고 싶지 않다면, Docker를 사용하여 격리된 환경에서 프로젝트를 실행할 수 있습니다.
-
-#### 사전 준비 사항
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)이 설치되어 있어야 합니다.
-
-#### 단계별 실행 방법
-
-1.  **프로젝트 루트에 `Dockerfile`과 `.dockerignore` 파일이 있는지 확인**:
-    이 프로젝트에는 이미 Docker 설정 파일들이 포함되어 있습니다. 별도로 생성할 필요가 없습니다.
-
-2.  **Docker 이미지 빌드**:
-    터미널에서 아래 명령어를 실행하여 Docker 이미지를 빌드합니다. `product-comparison-app`은 원하는 이미지 이름으로 변경할 수 있습니다.
-    ```bash
-    docker build -t product-comparison-app .
-    ```
-
-3.  **Docker 컨테이너 실행**:
-    빌드된 이미지를 사용하여 컨테이너를 실행합니다.
-    ```bash
-    docker run -p 3000:3000 --rm --name product-comparison-runner product-comparison-app
-    ```
-    - `-p 3000:3000`: 로컬 컴퓨터의 3000번 포트를 컨테이너의 3000번 포트로 연결합니다.
-    - `--rm`: 컨테이너가 중지될 때 자동으로 삭제되도록 설정합니다.
-    - `--name`: 컨테이너에 `product-comparison-runner`라는 이름을 부여합니다.
-
-4.  **브라우저에서 확인**:
-    이제 웹 브라우저에서 `http://localhost:3000` 주소로 접속하면 애플리케이션을 볼 수 있습니다.
-
-#### 💡 개발 시 유의사항
-- 위 방법은 코드를 Docker 이미지 안에 복사하는 방식이므로, 로컬에서 코드를 수정한 내용이 실행 중인 컨테이너에 **자동으로 반영되지 않습니다.**
-- 개발 중에 코드 변경 사항을 실시간으로 확인하고 싶다면, 로컬 파일 시스템을 컨테이너에 **마운트(mount)**하여 실행하는 것이 좋습니다. 아래 명령어를 사용하세요.
-  ```bash
-  # 'docker run' 명령어 대신 아래 명령어로 실행
-  # $(pwd)는 현재 디렉토리 경로를 의미합니다 (Windows PowerShell에서는 ${PWD})
-  docker run -p 3000:3000 -v "$(pwd)":/app --rm --name product-comparison-runner product-comparison-app
-  ```
-- 이 방법을 사용하면 로컬에서 파일을 수정하고 저장할 때마다 별도의 빌드 과정 없이 바로 브라우저에서 변경 사항을 확인할 수 있습니다.
+```bash
+docker build -t av-compare-pro .
+docker run -p 3000:3000 --rm --name av-compare-runner av-compare-pro
+```
+브라우저에서 `http://localhost:3000` 접속.
 </details>
 
 <details>
 <summary>📁 프로젝트 구조</summary>
 
-프로젝트는 다음과 같은 파일과 폴더로 구성되어 있습니다.
-
 ```
 .
-├── components/                 # 재사용 가능한 React 컴포넌트 폴더
-│   ├── App.tsx
-│   ├── ChartModal.tsx
-│   ├── ConfirmationModal.tsx
-│   ├── DataImportModal.tsx
-│   ├── icons.tsx
-│   ├── Modal.tsx
-│   ├── ProductFormModal.tsx
-│   └── SpecFormModal.tsx
-├── Dockerfile                  # Docker 이미지 빌드를 위한 설정 파일
-├── .dockerignore               # Docker 빌드 시 제외할 파일 목록
-├── index.html                  # 웹 애플리케이션의 진입점 (HTML 뼈대)
-├── index.tsx                   # React 앱을 DOM에 마운트하는 최상위 파일
-├── metadata.json               # 프로젝트 메타데이터
-├── README.md                   # 프로젝트 설명 파일 (바로 이 파일입니다)
-└── types.ts                    # TypeScript 타입 정의 (Product, Spec 등)
+├── App.tsx                     # 핵심 컴포넌트: 상태·로직·레이아웃, 행/열 뷰, 비교/인쇄 모달
+├── index.tsx                   # React 앱 마운트 진입점
+├── index.html                  # HTML 뼈대 + Tailwind CDN + 인쇄용 print CSS
+├── types.ts                    # 타입 정의: Spec(메타 포함), Product
+├── data/
+│   └── mockData.ts             # AV/디스플레이 36종 시드 데이터 + 타입 메타 스펙(SEED_SPECS/SEED_PRODUCTS)
+├── utils/
+│   └── specValue.ts            # 공유 파서·정규화·승자맵·가중 점수·메타 추론
+├── components/
+│   ├── Modal.tsx               # 범용 모달 뼈대
+│   ├── ConfirmationModal.tsx   # 삭제 확인 모달
+│   ├── SpecFormModal.tsx       # 사양 추가/편집
+│   ├── ProductFormModal.tsx    # 제품 추가/편집(이미지 업로드 포함)
+│   ├── DataImportModal.tsx     # CSV/JSON 가져오기·템플릿 내보내기(RFC 4180 파서)
+│   ├── ChartModal.tsx          # 단일 스펙 막대 차트(지연 로드)
+│   ├── RadarChartModal.tsx     # 다축 레이더 비교(지연 로드)
+│   ├── DecisionPanel.tsx       # 가중치 의사결정 매트릭스(순위·추천·가성비)
+│   ├── ProductCardView.tsx     # 모바일 카드 뷰
+│   └── icons.tsx               # SVG 아이콘 모음
+├── public/
+│   └── products/               # 제품 이미지(실사 .jpg + 플레이스홀더 .svg), /products/<slug> 로 참조
+├── scripts/
+│   └── generate-product-images.mjs  # 플레이스홀더 이미지 생성기 (npm run gen:images)
+├── docs/
+│   └── data-collection-prompts.md   # 크롬 Claude 확장용 데이터 수집 프롬프트
+├── netlify.toml                # Netlify 빌드 설정
+├── Dockerfile / .dockerignore  # Docker 설정
+├── vite.config.ts              # Vite 설정
+└── tsconfig.json               # TypeScript 설정
 ```
 </details>
 
 <details>
-<summary>🧩 컴포넌트 및 코드 상세 설명</summary>
+<summary>🧩 핵심 모듈 설명</summary>
 
 ### `types.ts`
-- **역할**: 애플리케이션 전체에서 사용되는 데이터 구조를 정의합니다.
-- **`Spec` 인터페이스**: '사양' 객체의 형태를 정의합니다. (예: `{ id: 'uuid', name: '가격' }`)
-- **`Product` 인터페이스**: '제품' 객체의 형태를 정의합니다. 제품의 고유 `id`, **`brand`**, **`model`**, 이미지 URL, 그리고 여러 사양 값을 포함합니다.
+- **`Spec`**: `id`, `name` 외에 비교용 메타데이터 — `kind`(number/currency/text/enum), `unit`,
+  `betterDirection`(higher/lower/none), `weight`(0~100), `category`.
+- **`Product`**: `id`, `brand`, `model`, `imageUrl`, `category`, `specs`(specId→문자열 값).
 
-### `index.tsx`
-- **역할**: React 애플리케이션의 시작점입니다.
-- `ReactDOM.createRoot()`를 사용하여 `index.html`의 `<div id="root">` 요소에 메인 컴포넌트인 `<App />`을 렌더링(화면에 표시)합니다.
+### `utils/specValue.ts`
+- `parseSpecValue` — 통화/콤마/단위를 제거하고 선행 숫자를 추출(차트·승자·점수가 공유).
+- `computeBestWorstMap` / `rankCell` — 스펙별 최고·최저 계산과 셀 등급 판정(승자 하이라이트).
+- `normalizeSpec` / `computeScores` — 0~100 정규화와 가중 점수·가성비 계산.
+- `inferSpecMeta` / `withInferredMeta` — 이름 기반으로 레거시·가져온 스펙에 메타 자동 부여.
 
-### `components/icons.tsx`
-- **역할**: UI에 사용되는 다양한 SVG 아이콘들을 React 컴포넌트로 만들어 모아둔 파일입니다.
-- 아이콘을 컴포넌트화하면 크기, 색상 등을 쉽게 변경할 수 있고, 코드를 더 의미론적으로 만들 수 있습니다.
-
-### `components/Modal.tsx`
-- **역할**: 애플리케이션의 모든 모달(팝업창)을 위한 기본 뼈대를 제공하는 범용 컴포넌트입니다.
-- **주요 기능**:
-    - `isOpen` prop을 통해 모달을 열고 닫습니다.
-    - `onClose` prop으로 모달 바깥 영역을 클릭했을 때 닫히는 기능을 구현합니다.
-    - `title`과 `children` prop을 받아 모달의 제목과 내용을 채웁니다. 이를 통해 다른 모달들이 일관된 디자인을 유지할 수 있습니다.
-
-### `components/ConfirmationModal.tsx`
-- **역할**: 삭제와 같이 되돌릴 수 없는 중요한 작업을 수행하기 전에 사용자에게 최종 확인을 받는 범용 확인 모달입니다.
-- **주요 기능**:
-    - **안정적인 확인 절차**: 브라우저에 내장된 `window.confirm` 대화상자는 특정 환경(예: iframe)에서 차단될 수 있지만, 이 커스텀 모달은 환경에 구애받지 않고 항상 일관되게 동작하여 안정성을 보장합니다.
-    - **시각적 경고**: 위험한 작업을 수행 중임을 사용자에게 명확히 알리기 위해 경고 아이콘과 눈에 띄는 버튼 색상(예: 빨간색 삭제 버튼)을 사용합니다.
-    - **재사용성**: `title`, `message`, `onConfirm` 콜백 함수를 props로 받아 어떤 종류의 확인 작업에도 재사용할 수 있습니다.
-
-### `components/SpecFormModal.tsx`
-- **역할**: '사양'을 추가하거나 편집할 때 사용되는 모달입니다.
-- **주요 기능**:
-    - `spec` prop을 받아, 기존 사양을 편집할지 새로운 사양을 추가할지 결정합니다.
-    - 입력 필드(`input`)의 상태를 관리하고, '저장' 버튼을 누르면 `onSave` 콜백 함수를 호출하여 `App.tsx`의 상태를 업데이트합니다.
-
-### `components/ProductFormModal.tsx`
-- **역할**: '제품'을 추가하거나 편집할 때 사용되는 모달입니다. Apple 스타일의 세련된 UI를 제공합니다.
-- **주요 기능**:
-    - 제품의 **브랜드**와 **모델명**을 별도로 입력받고, 이미지 및 모든 사양 값을 관리하는 폼을 제공합니다.
-    - **이미지 업로드**: 드래그 앤 드롭 또는 파일 선택을 통해 이미지를 업로드하고, `FileReader` API를 사용하여 이미지를 미리 보여줍니다.
-    - `product` prop을 받아 기존 제품 정보를 폼에 채워 넣거나, 비어있는 폼으로 새 제품을 추가할 수 있게 합니다.
-    - **제품 삭제 기능**: 모달 하단에 '삭제' 버튼이 포함되어 있어, 제품 수정 중에 해당 제품을 안전하게 삭제할 수 있습니다.
-
-### `components/DataImportModal.tsx`
-- **역할**: 대량의 제품 데이터를 가져오기 위한 모달입니다.
-- **주요 기능**:
-    - **파일 업로드**: 사용자가 `.json` 또는 `.csv` 파일을 업로드할 수 있습니다.
-    - **CSV 파싱**: `parseCsvToJson` 함수를 통해 CSV 파일의 텍스트를 애플리케이션이 사용할 수 있는 JSON 객체 배열로 변환합니다. 헤더를 분석하여 **'brand'**, **'model'**, 'imageUrl' 및 나머지 사양들을 올바르게 매핑합니다.
-    - **템플릿 다운로드**: 현재 데이터를 기반으로 JSON 또는 CSV 형식의 템플릿 파일을 생성하고 다운로드할 수 있게 하여, 사용자가 데이터 형식을 쉽게 맞출 수 있도록 돕습니다.
-    - `onImport` 콜백을 호출하여 `App.tsx`의 전체 데이터를 업로드된 파일의 내용으로 교체합니다.
+### `data/mockData.ts`
+- `SEED_SPECS`(21개 스펙, 메타 포함)와 `SEED_PRODUCTS`(36종, 5개 카테고리).
+- 이미지 경로는 `slugify("brand model")` → `/products/<slug>.svg|jpg`. 실제 사진을 같은 슬러그로
+  넣으면 자동 사용됩니다.
 
 ### `App.tsx`
-- **역할**: 이 애플리케이션의 **두뇌**와 같은 핵심 컴포넌트입니다. 모든 데이터(상태), 로직, 그리고 UI의 전체적인 레이아웃을 관리합니다.
-- **상태 관리 (`useState`, `useRef`, `useEffect`)**:
-    - `specs`, `products`: 앱의 핵심 데이터인 사양과 제품 목록을 저장하고 관리합니다.
-    - `is...ModalOpen`: 각 모달의 열림/닫힘 상태를 제어합니다.
-    - `editingSpec`, `editingProduct`: 어떤 항목을 편집 중인지 추적합니다.
-    - `selectedBrand`, `modelQuery`, `selectedSpecIds`: 필터링에 사용되는 값들을 관리합니다.
-    - `sortConfig`: 제품 목록의 정렬 기준(어떤 사양으로, 오름차순/내림차순)을 저장합니다.
-    - `viewMode`: '제품-행' 뷰와 '제품-열' 뷰를 전환하는 상태를 관리합니다.
-- **핵심 핸들러 함수 (`handle...`)**:
-    - `handleOpen...Modal`: 모달을 여는 함수들입니다. 편집 시에는 해당 항목의 데이터를 함께 전달합니다.
-    - `handleSaveSpec`, `handleSaveProduct`: `SpecFormModal`, `ProductFormModal`에서 '저장'이 호출되면 실행됩니다. `specs`나 `products` 배열에 새로운 항목을 추가하거나 기존 항목을 업데이트하여 상태를 변경합니다.
-    - `handleDeleteSpec`, `handleDeleteProduct`: 특정 항목을 배열에서 제거합니다. 사용자의 실수를 방지하기 위해, 즉시 삭제하는 대신 `ConfirmationModal`을 열어 최종 확인을 받습니다.
-    - `handleImportData`: `DataImportModal`에서 파일이 성공적으로 처리되면 호출됩니다. 기존의 `specs`와 `products` 상태를 파일에서 읽어온 새로운 데이터로 완전히 교체합니다.
-- **메모이제이션 (`useMemo`)**:
-    - `sortedProducts`, `displayedSpecs` 등은 `useMemo`를 사용하여 불필요한 계산을 방지합니다. 예를 들어, `sortedProducts`는 필터링 조건(`selectedBrand`, `modelQuery`)이나 정렬 조건(`sortConfig`)이 변경될 때만 정렬을 다시 수행합니다. 이는 애플리케이션의 성능을 최적화하는 중요한 기술입니다.
-- **렌더링 로직**:
-    - 상태(`state`)를 기반으로 화면을 그립니다. `viewMode`에 따라 `ProductAsRowView` 또는 `ProductAsColumnView` 컴포넌트를 조건부로 렌더링합니다.
-    - 각 버튼과 입력 필드에 적절한 핸들러 함수를 연결하여 사용자 상호작용에 반응하도록 합니다.
+- 앱의 두뇌. specs/products/필터/정렬/뷰/가중치 상태를 관리하고 `localStorage`에 저장.
+- 표시 스펙(`finalDisplayedSpecs`)·정렬 제품(`sortedProducts`)·승자맵·점수 대상은 `useMemo`로 계산.
+- 데스크톱은 `ProductAsRowView`/`ProductAsColumnView`, 모바일은 `ProductCardView`로 렌더.
+- 차트 모달은 `React.lazy`로 지연 로드(코드 스플릿).
 </details>
