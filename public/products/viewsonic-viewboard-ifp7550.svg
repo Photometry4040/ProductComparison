@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <rect width="400" height="300" fill="#d97706"/>
+  <rect width="400" height="300" fill="#000" opacity="0.06"/>
+  <g fill="#fff" opacity="0.22"><rect x="128" y="72" width="144" height="96" rx="8"/>
+              <circle cx="236" cy="152" r="9" fill="#fff"/>
+              <path d="M236 152 l16 26 l-9 2 l-3 9 z"/></g>
+  <text x="200" y="208" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="30" font-weight="700" fill="#fff">ViewSonic</text>
+  <text x="200" y="240" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="20" fill="#fff" opacity="0.95">ViewBoard IFP7550</text>
+  <text x="200" y="276" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="12" letter-spacing="1.5" fill="#fff" opacity="0.7">INTERACTIVE DISPLAY</text>
+</svg>

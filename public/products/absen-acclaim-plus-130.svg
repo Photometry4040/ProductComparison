@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <rect width="400" height="300" fill="#db2777"/>
+  <rect width="400" height="300" fill="#000" opacity="0.06"/>
+  <g fill="#fff" opacity="0.22"><rect x="146" y="92" width="32" height="32" rx="3"/><rect x="184" y="92" width="32" height="32" rx="3"/><rect x="222" y="92" width="32" height="32" rx="3"/><rect x="146" y="130" width="32" height="32" rx="3"/><rect x="184" y="130" width="32" height="32" rx="3"/><rect x="222" y="130" width="32" height="32" rx="3"/></g>
+  <text x="200" y="208" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="30" font-weight="700" fill="#fff">Absen</text>
+  <text x="200" y="240" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="20" fill="#fff" opacity="0.95">Acclaim Plus (130&quot;)</text>
+  <text x="200" y="276" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="12" letter-spacing="1.5" fill="#fff" opacity="0.7">LED VIDEO WALL</text>
+</svg>
